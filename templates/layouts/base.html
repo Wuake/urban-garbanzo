@@ -1,0 +1,29 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html>
+<head>
+    {% load django_bootstrap5 %}
+
+    {% bootstrap_css %}
+    {% bootstrap_javascript %}
+    {% bootstrap_messages %}
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
+        
+    <title>{% block title%} webeeconf {% endblock %}</title>
+    <link rel="stylesheet" type="text/css" href="{% static 'css/styles.css' %}">
+
+    <link href="https://unpkg.com/video.js/dist/video-js.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+</head>
+<body>
+    {% include "layouts/_nav.html" %}
+
+      <div class="container containerp">
+        {% block content%} {% endblock %}
+      </div>
+
+        {% include "layouts/_footer.html" %}
+</body>
+</html>

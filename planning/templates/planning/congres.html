@@ -1,0 +1,30 @@
+
+{% extends 'Planning/base.html' %}
+{% load static %}
+{% block title%}vod{% endblock %}
+
+{% block body %} 
+
+{% load crispy_forms_tags %}  
+<div class="container ">
+    <div class="row ">
+        <div class="col-2"></div>        
+        <div class="col-8">
+    
+                <h2 class="font-weight-bold mt-3"><i class="bi bi-file-plus text-warning"></i> Création d'un nouveau congrès </h2>
+                <hr>
+                
+                <form action="{% url 'planning:congres' %}" method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    {{ add_form|crispy }}  
+                    <hr>                  
+                    <button class="btn btn-info" type="submit">Valider</button>
+                </form>
+           
+        </div>
+        <div class="col-2"></div>
+
+</div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,327 @@
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans&display=swap');
+
+.navbar2 {
+	background-color: #000;
+	border-top: 4px solid #1ce;
+	padding: 1em 0;
+}
+.navbar3 {
+	color: #1ce;
+}
+.containerp {
+   min-height:600px;
+}
+
+.nav-link:hover {
+  color: #1ce !important;
+}
+
+#chat2 .form-control {
+border-color: transparent;
+}
+
+#chat2 .form-control:focus {
+border-color: transparent;
+box-shadow: inset 0px 0px 0px 1px transparent;
+}
+
+.divider:after,
+.divider:before {
+content: "";
+flex: 1;
+height: 1px;
+background: #eee;
+}
+
+.nav-tabs .nav-item .nav-link {
+	color: #1ce;
+}
+  
+.nav-tabs .nav-item .nav-link.active {
+	color: #000;
+}
+#rooms{
+  width: 100%;
+}
+.list-group{
+  width: 100%;
+  height: 100%;
+}
+
+  /* hr pour ne pas avoir d'espace en haut dans le live */
+  hr.divider { 
+	margin-top: 0em;
+	border-width: 2px;
+  } 
+  hr.divider-b { 
+	margin-bottom: 0em;
+	border-width: 2px;
+  }
+
+.intervenant_list {
+	background-color: #1ce;
+	height: 48rem;
+}
+
+
+.intervenant_create {
+	background-color: blanchedalmond;
+	height: 48rem;
+}
+
+.floating-stack {
+	background: #455a64;
+	color: #fff;
+	height: 300px;
+	width: 320px;
+	border-radius: 1rem;
+	overflow-y: auto;
+  }
+  
+  .floating-stack > dl {
+	margin: 0 0 1rem;
+	display: grid;
+	grid-template-columns: 2.5rem 1fr;
+	align-items: center;
+  }
+  
+  .floating-stack dt {
+	position: sticky;
+	top: 0.5rem;
+	left: 0.5rem;
+	font-weight: bold;
+	background: #263238;
+	color: #cfd8dc;
+	height: 2rem;
+	width: 2rem;
+	border-radius: 50%;
+	padding: 0.25rem 1rem;
+	grid-column: 1;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+  }
+  
+  .floating-stack dd {
+	grid-column: 2;
+	margin: 0;
+	padding: 0.75rem;
+  }
+  
+  .floating-stack > dl:first-of-type > dd:first-of-type {
+	margin-top: 0.25rem;
+  }
+
+  .presta{
+	display: flex;
+  }
+
+#part1_pres{
+	width: 50%;
+	height: 100%;
+}
+#part2_pres{
+	display: flex;
+	justify-content: center;
+	width: 50%;
+}
+#btn-lancement{
+	cursor: pointer;
+	color: rgb(57, 170, 46);
+}
+#list_presentation_block1{
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-top: 0.5rem;
+
+}
+#list_presentation_block2{
+    display: flex;
+    justify-content: center;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #cfcfcf;
+}
+#duree {
+    align-self: center;
+    margin: 0;
+}
+#overlay{
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	z-index: 0;
+	background-color: rgba(0,0,0,0.5);
+	display: none;
+}
+#page_upload{
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: 77rem;
+	height: fit-content + 3rem;
+	z-index: 1;
+	transform: translate(-50%, -50%);
+	background-color: #dbdbdb;
+	border-radius: 5px;
+}
+
+.ligne_planning {
+	display: flex;
+}
+
+.colonne_planning {
+	display: flex;
+	width: 20%;
+	justify-content: space-between;
+}
+
+.text_room_planning {
+	width: 100%;
+	justify-content: center;
+}
+
+.session {
+  padding: 1rem;
+  background: bisque;
+  border-radius: 1em;
+  margin: 0px 5px 5px 5px;
+}
+
+
+.current-session {
+    background-color: green;
+}
+
+.barre-horizontale {
+	display: flex;
+	height: 30px;
+	width: 100%;
+	background-color: lightgray;
+	padding: 5px;
+	margin-left: 5%;
+}
+
+.heure {
+	width: 8.333333333%;
+	text-align: center;
+}
+
+.salle-col {
+	margin-top: 3%;
+	width: 100%;
+	height: 100%;
+}
+.salle {
+	border-top: 1px solid #c4c4c4;
+	border-bottom: 1px solid #c4c4c4;
+	width: 100%;
+	height: 11%;
+	display: flex;
+	align-items: center;
+}
+
+.titre_salle {
+	width: 5%;
+}
+
+
+.session_horizontale {
+	width: 100%;
+	height: 100%;
+	display: flex;
+	align-items: center;
+}
+
+.session_v2 {
+	/* padding-left: 0.5rem; */
+	background: rgb(241, 202, 154);
+	border-radius: 0.5em;
+	/* margin: 0px 1px 0 5px; */
+	/* width: 8.033333%; */
+	float: left;
+	display: flex;
+	align-items: center;
+	font-size: medium;
+	height: 95%;
+}
+#emojis{
+	display: inline-flex;
+}
+/* * pop up de synchro fichier */
+#chargement{
+	position: absolute;
+	background-color: #dbdbdb;
+	padding: 1rem;
+	top: 50%;
+	left: 50%;
+	width: 30rem;
+	height: 10rem;
+	z-index: 1;
+	border-radius: 5px;
+	transform: translate(-50%, -50%);
+}
+
+.lds-ellipsis {
+	display: inline-block;
+	position: relative;
+	top : 50%;
+	left: 50%;
+	transform: translate(-50%, -75%);
+	width: 80px;
+	height: 80px;
+  }
+  .lds-ellipsis div {
+	position: absolute;
+	top: 33px;
+	width: 13px;
+	height: 13px;
+	border-radius: 50%;
+	background: #fff;
+	animation-timing-function: cubic-bezier(0, 1, 1, 0);
+  }
+  .lds-ellipsis div:nth-child(1) {
+	left: 8px;
+	animation: lds-ellipsis1 0.6s infinite;
+  }
+  .lds-ellipsis div:nth-child(2) {
+	left: 8px;
+	animation: lds-ellipsis2 0.6s infinite;
+  }
+  .lds-ellipsis div:nth-child(3) {
+	left: 32px;
+	animation: lds-ellipsis2 0.6s infinite;
+  }
+  .lds-ellipsis div:nth-child(4) {
+	left: 56px;
+	animation: lds-ellipsis3 0.6s infinite;
+  }
+  @keyframes lds-ellipsis1 {
+	0% {
+	  transform: scale(0);
+	}
+	100% {
+	  transform: scale(1);
+	}
+  }
+  @keyframes lds-ellipsis3 {
+	0% {
+	  transform: scale(1);
+	}
+	100% {
+	  transform: scale(0);
+	}
+  }
+  @keyframes lds-ellipsis2 {
+	0% {
+	  transform: translate(0, 0);
+	}
+	100% {
+	  transform: translate(24px, 0);
+	}
+  }
+  

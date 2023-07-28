@@ -1,0 +1,75 @@
+<div class="container-fluid">
+<nav class="navbar navbar-expand-lg navbar-light bg-light navbar2">
+  <div class="container">
+    <a class="navbar-brand navbar3"  href="{% url 'home' %}">
+    <img src="/media/images/logo.jpg" width="30" height="30" class="d-inline-block align-top" alt="">
+    WebeeConf
+  </a>
+
+    <div class="collapse navbar-collapse" id="navbarTogglerDemo03">
+   
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'planning:congres' %}"> Congrès </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'planning:intervenant' %}"> Intervenant </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'planning:create' %}"> Plannifier </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'planning:upload' %}"> Upload PPTX </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'planning:show' %}"> Planning </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'planning:planning' %}"> Planning v2 </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'planning:pupitre' %}"> Pupitre </a>
+        </li>
+
+        
+        
+         <li class="nav-item">
+          <a class="nav-link" href="{% url 'admin:index' %}"> Admin </a>
+        </li>
+
+      </ul>
+
+    <div class="d-flex align-items-center">
+
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          {% if user.is_authenticated %}
+            <li class="nav-item">
+              <a class="nav-link " href="#"   role="button" > {{user.username}} <i class="bi bi-person-x-fill"></i> 
+              </a>
+            </li>
+          
+          {% else %}
+          <li class="nav-item">
+            <a class="nav-link " href="#"  role="button" > <i class="bi bi-person-circle"> </i>
+            </a>
+          </li>
+              <!-- <button  class="btn btn-outline-primary" type="button"
+              data-mdb-ripple-color="dark" data-bs-toggle="modal" data-bs-target="#popup">Login</button> -->
+          {% endif %}
+          <!--
+         
+           -->
+
+           
+
+        </ul>
+
+    
+
+      </ul>
+      </div>
+
+    </div>
+  </div>
+</nav>
+</div>

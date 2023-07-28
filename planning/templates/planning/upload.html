@@ -1,0 +1,337 @@
+{% extends 'Planning/base.html' %}
+{% load static %}
+{% block title%}Upload{% endblock %}
+
+{% block body %}
+
+<div class="container">
+    <div class="row">
+        <hr>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body" data-mdb-perfect-scrollbar="true"
+                    style="padding-right:0; padding-left:0; height:695px; overflow-y: scroll;">
+
+                    <div class="list-group planning-area">
+                        <!-- planning area by ajax -->
+                        {% for intervenant in intervenant_all %}
+
+                        <li id="{{ intervenant.id }}"
+                            class="list-group-item personne align-items-start list-group-item-action">
+                            <!-- onclick="select_prest(0,${ pres.session_id }, ${ pres.id } ) -->
+                            <div class="d-flex w-100 justify-content-between">
+                                <img src="{{ intervenant.logo.url }}"
+                                    style="width: 75px;height: 75px;border-radius: 30rem;">
+                                <h5 class="mb-1" style="align-self: center;">{{ intervenant.prenom }} <strong>{{ intervenant.nom|upper }}</strong></h5>
+                                <!--<span class=" float-end"> <small> ${ pres.duration } min &nbsp;&nbsp; </small>
+                                    <a href="#"
+                                        onclick="editPres( '${ pres.id }','${ pres.title }','${ pres.duration }','${ pres.author_id }')"
+                                        class=" bi-pencil-fill text-secondary"></a>
+                                </span>-->
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div id="presta_container" class="card-body" data-mdb-perfect-scrollbar="true"
+                    style="padding-right:0; padding-left:0; height:695px; overflow-y: scroll;">
+
+                    <div class="list-group planning-area">
+                        <!-- planning area by ajax -->
+                        {{ presentations }}
+
+                        {% for presentation in presentations %}
+
+                        <li id="{{ presentation.id }}" class="list-group-item align-items-start list-group-item-action">
+                            <!-- onclick="select_prest(0,${ pres.session_id }, ${ pres.id } ) -->
+                            <div class="d-flex w-100 justify-content-between">
+                                <h5 class="mb-1" style="align-self: center;"> {{ presentation.title }} </h5>
+                                <!--<span class=" float-end"> <small> ${ pres.duration } min &nbsp;&nbsp; </small>
+                                    <a href="#"
+                                        onclick="editPres( '${ pres.id }','${ pres.title }','${ pres.duration }','${ pres.author_id }')"
+                                        class=" bi-pencil-fill text-secondary"></a>
+                                </span>-->
+                            </div>
+
+                        </li>
+
+                        {% endfor %}
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+    <input type="hidden" id="js_data" data-url="" data-csrf="{{csrf_token}}" />
+</div>
+<div id="overlay">
+    <section id="page_upload" >
+        <div class="container" >
+            <div id="divrow" class="row"  > 
+                <div class="col">
+                <div class="mb-3 mt-3">
+                    <div style="display: flex; justify-content: space-between;">
+                        <h2 class="mb-3" style="font-weight: 300">Importer une présentation (.pptx, <strong>1GO max</strong>)</h2>
+                        <span style="font-weight: 900; cursor: pointer;" onclick="popup_close()">&times;</span>
+                    </div>
+                        <form enctype="multipart/form-data" method="POST" action="" style="text-align: center;">
+                            {% csrf_token %}
+                            <div class="form-group mb-3">
+                                <input type="file" value="Custom Button Name" class="form-control" id="fileupload" placeholder="Select file">
+                            </div>    
+                        </form>
+                        <button type="button" value="Upload" id="upload_btn" class="btn btn-primary ">Upload</button>
+                            <button class="btn btn-primary d-none" id="loading_btn" type="button" disabled>
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            Uploading...
+                            </button>
+                
+                            <button type="button" id="cancel_btn" class="btn btn-secondary d-none">Cancel upload</button>
+        
+                        <div id="progress_wrapper">
+                        </div>
+                        <div id="alert_wrapper"></div>
+                    </div> 
+                </div>
+            </div> 
+        </div>
+    </section>
+</div>
+<script link></script>
+<script type="text/javascript">
+    let csrf_token = $("#js_data").attr("data-csrf");
+    var liste_personnes = document.querySelectorAll('.personne')
+    var input_file = document.getElementById("fileupload");
+
+    // Fonction appelée lors de la sélection du fichier
+    function handleFileSelection(event) {
+        const file = event.target.files[0];
+        const formData = new FormData();
+        formData.append('name', file.name);
+
+        fetch("{% url 'upload:absolute_path' %}", {
+            method: "POST",
+            credentials: 'same-origin',
+            headers: {
+                "X-CSRFToken": csrf_token,
+            },
+            body: formData,
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log(data.file_path);
+        });
+    }
+
+    // // permet de savoir où se trouve le fichier sélectionné lors de l'upload
+    // input_file.addEventListener("change", handleFileSelection);
+    
+    // permet de fermer la popup en cliquant en dehors de la popup
+    document.getElementById("overlay").addEventListener("dblclick", function () {
+        document.getElementById("overlay").style.display = "none";
+    });
+    //gestion de la popup
+    function popup() {
+        document.getElementById("overlay").style.display = "block";
+    }
+    function popup_close() {
+        document.getElementById("overlay").style.display = "none";
+    }
+
+    // gestion de l'affichage des présentations
+    for (var i = 0; i < liste_personnes.length; i++) {
+        liste_personnes[i].addEventListener("click", function () {
+
+        //l'intervenant change de couleur
+        // this.style.backgroundColor = "#e9ecef";
+
+        fetch("{% url 'planning:upload_intervenant' %}", {
+                method: "POST",
+                credentials: 'same-origin',
+                headers: {
+                    "X-CSRFToken": csrf_token,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    id: this.id,
+                }),
+            }).then(response => response.json())
+            .then(data => {
+                // on vide le contenu hmtl pour éviter les doublons
+                document.getElementById("presta_container").innerHTML = "";
+                data.presentations.forEach(presta => {
+                    construct_presta(presta)//gère la construction des prestations
+                    dynamic_display(presta) //gère l'accusé de réception de présence de fichier (emoji)
+                    on_laptop(presta) //gère l'affichage de l'état du fichier sur le pc pupitre
+                });
+                // liste des boutons "Fichier"
+                let liste_btn = document.getElementsByClassName("btn_fichier");
+
+                // gestion de l'envoi de l'id de la présentation au serveur
+                for (let btn of liste_btn) {
+                btn.addEventListener("click", () => {
+                    id_presta = btn.getAttribute("value_presta");
+                    console.log(id_presta)  
+                    //test si le fichier existe déjà
+                    file_check(id_presta).then(res => {
+                        
+                        if (res == true){
+                            // console.log("overwrite", confirm_overwrite());
+                            //s'éxécute dans le if
+                            if(confirm_overwrite() == false){
+                                //mettre un timer pour que la popup ait le temps de s'afficher
+                                popup_close();
+                            }
+                        }
+                    });
+                });
+                }
+            })
+            .catch(error => console.error(error));
+        })
+    }
+    function ouvrir_presentation(presentation_id) {
+        fetch("{% url 'planning:open_pres' %}", {
+        method:"POST",
+        credentials: 'same-origin',
+        headers: {
+            "X-CSRFToken": csrf_token,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            id: presentation_id,
+        }),
+        }).then(function (response) {
+        console.log("Présentation ouverte");
+        }).catch(function (error) {
+        console.log("Une erreur s'est produite : " + error)
+        });
+    }
+
+    function construct_presta(presentation) {
+        console.log(presentation.id)
+        let div = document.createElement("div");
+        div.innerHTML = `
+            <li id="${presentation.id}" class="list-group-item align-items-start list-group-item-action">                
+                <div id="list_presentation_block1" class="d-flex w-100 justify-content-between">
+                    <h5 class="mb-1"> ${presentation.title}</h5>
+                    <span id="emojis" class="float-end">
+                        <p id="check_mark_${ presentation.id }" hidden>✅</p>
+                        <p id="laptop_${ presentation.id }" hidden>💻</p>
+                        <p id="cross_mark_${ presentation.id }">❌</p>
+                    </span>
+                </div>
+
+                <div id="list_presentation_block2" class="d-flex w-100 justify-content-between">
+                    <h6 id="duree" class="d-flex align-self-end">${ presentation.duration } min</h6>
+                    <span onclick=ouvrir_presentation(${ presentation.id }) style="cursor: pointer"><u>tester le fichier</u></span>
+                    <button id="btn_fichier" type="button" class="btn btn-outline-secondary btn_fichier" onclick="popup()" value_presta="${presentation.id}">Fichier</button>
+                </div>
+            </li>
+            <br/>
+            `
+        document.getElementById("presta_container").appendChild(div);
+        div.scrollIntoView()
+    }
+
+    function dynamic_display(presentation){
+        //gestion des check mark pour la présence du fichier
+        //attention c'est asynchrone tout ça
+        fetch("{% url 'planning:check_mark' %}", {
+            method: "POST",
+            credentials: 'same-origin',
+            headers: {
+                "X-CSRFToken": csrf_token,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                id: presentation.id,
+            }),
+        })
+        //test si la réponse est ok
+        .then(response => response.json())
+        .then(data => {
+            if (data.success == true) {
+                document.getElementById(`check_mark_${ presentation.id }`).hidden = false
+                document.getElementById(`cross_mark_${ presentation.id }`).hidden = true
+            } else {
+                document.getElementById(`check_mark_${ presentation.id }`).hidden = true
+                document.getElementById(`cross_mark_${ presentation.id }`).hidden = false
+            }
+        })
+    }
+
+    function on_laptop(presentation){
+        //gestion des check mark pour la présence du fichier
+        //attention c'est asynchrone tout ça
+        fetch("{% url 'planning:on_laptop' %}", {
+            method: "POST",
+            credentials: 'same-origin',
+            headers: {
+                "X-CSRFToken": csrf_token,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                file: presentation.fichier_pptx,
+            }),
+        })
+        //test si la réponse est ok
+        .then(response => response.json())
+        .then(data => {
+            if (data.success == true) {
+                console.log(data.success)
+                document.getElementById(`laptop_${ presentation.id }`).hidden = false
+            } else {
+                document.getElementById(`laptop_${ presentation.id }`).hidden = true
+            }
+        })
+    }
+
+    function file_check(id_presta) {
+        //utilisation d'une promesse pour gérer l'asynchronisme de la requête 
+        //et pouvoir utiliser le résultat dans la fonction appelante
+        return new Promise((resolve, reject) => {
+            fetch("{% url 'planning:check_mark' %}", {
+                method: "POST",
+                credentials: 'same-origin',
+                headers: {
+                    "X-CSRFToken": csrf_token,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    id: id_presta,
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success == true) {
+                    console.log("le fichier existe déjà");
+                    resolve(true);
+                } else {
+                    console.log("le fichier n'existe pas");
+                    resolve(false);
+                }
+            })
+            .catch(error => {
+                console.error(error);
+                reject(error);
+            });
+        });
+    }
+
+    // confirmation de l'écrasement d'un fichier
+    function confirm_overwrite() {
+        if (confirm("Un fichier existe déjà pour cette présentation. Voulez-vous l'écraser ?")) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+</script>
+<script src="{% static 'js/upload.js' %}" defer></script>
+
+{% endblock %}

@@ -1,0 +1,481 @@
+{% extends 'planning/base.html' %}
+{% load static %}
+
+{% block body %}
+{% load crispy_forms_tags %}
+<div class="row">
+  <div class="col-md-12">
+    <div class="list-group list-group-horizontal">
+      <div class="list-group list-group-horizontal" id="rooms">
+        {% for room in rooms %}
+        <a href="javascript:setRoomLive('{{room.number}}', '{{room.id}}', '{{ rooms|length }}', '{{room.moderator.id}}')"
+          class="list-group-item list-group-item-action text-center rounded-0"
+          style=" border-bottom: 2px solid #1ce; height: 34px; padding: 2px 7px;" id="room_id{{ forloop.counter }}">
+          {{room.number}}.{{room.name}}</a>
+        {% empty %}
+        <p> Désolé, pas de salles disponibles !</p>
+        {% endfor %}
+      </div>
+      <button onclick="fetching_files()" style="background-color: rgb(246, 186, 75); height: 35px; padding-top: 0;" id="synchro" class="btn"><img style="width: 10px; height: 15px;" src="../../../media/images/synchro.png" alt="synchronisation des fichiers"></button>
+    </div>
+    <!-- <hr class="divider" /> -->
+  </div>
+  <br>
+
+</div>
+
+<div class="container-fluid  p-0">
+  <div class="row g-2">
+    <div class="col-md-12">
+
+      {% for day in days %}
+      <div class="form-check form-check-inline">
+        <input class="form-check-input" type="radio" name="radio_dates" id="radio_dates" value={{day.date}}
+          onclick="setDate('{{day.date}}')">
+        <label class="form-check-label" for="inlineRadio1">{{day.date}}</label>
+      </div>
+      {% endfor %}
+      <div class="card">
+        <div class="card-body" data-mdb-perfect-scrollbar="true"
+          style="padding-right:0; padding-left:0; height:695px; overflow-y: scroll;">
+          <div class="list-group planning-area">
+            <!-- planning area by ajax -->
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6" style="display:none;">
+      <br>
+      <div id="form_sess">
+        {{ sess_form|crispy }}
+        <hr>
+        <button class="btn btn-info" id="sess_submit">Valider Session</button>
+      </div>
+      <div id="form_pres" display='none'>
+        {{ pres_form|crispy }}
+        <button type="button" id="add_field" class="btn btn-secondary">Intervenant supplémentaire</button>
+        <hr>
+        <button class="btn btn-primary" id="pres_submit">Valider Présentation</button>
+      </div>
+    </div>
+  </div>
+  <input type="hidden" id="js_data" data-url="" data-csrf="{{csrf_token}}" />
+</div>
+<div id="overlay">
+  <section id="chargement">
+    <h5>Synchronisation des fichiers en cours...</h5>
+    <div class="lds-ellipsis"><div></div><div></div><div></div><div></div></div>
+  </section>
+</div>
+
+<script type="text/javascript" defer>
+  let csrf_token = $("#js_data").attr("data-csrf");
+  let send_btn = document.getElementById("sess_submit");
+  send_btn.addEventListener('click', add_session);
+  let pres_submit = document.getElementById("pres_submit");
+  pres_submit.addEventListener('click', add_prest);
+  let date_sel = "12-12-2012";
+  let room_sel = 0;
+  let sess_sel = 0;
+  let on_edit = false;
+
+  document.getElementById("synchro").addEventListener('click', function(){
+    //popup de synchronisation
+    document.getElementById("overlay").style.display = "block";
+  });
+
+  function fetching_files(salle){
+    fetch("{% url 'planning:fetching_files' %}", {
+      method: "POST",
+      credentials: 'same-origin',
+      headers: {
+        "Content-Type": 'application/json',
+        'X-CSRFToken': csrf_token
+      },
+      body: {
+        salle: null, /*trouver un moyen de le chopper dynamiquement*/
+      }
+    }).then(e => e.json()).then(messages => {
+      alert("Synchronisation des fichiers effectuée !")
+      //arreter la popup de synchronisation 
+      document.getElementById("overlay").style.display = "none";
+    })
+  }
+  // Ajoute une salle quand on clique sur le bouton + ( id="add_room" )
+  // ! ne se met pas à jour apres l'insertion d'une salle
+  // 1 clique fonctionne, puis plus rien
+  $('#add_room').click(function () {
+    //ajouter une salle
+    fetch("{% url 'planning:salle-ajax' %}", {
+      method: "POST",
+      credentials: 'same-origin',
+      headers: {
+        "Content-Type": 'application/json',
+        'X-CSRFToken': csrf_token
+      },
+      body: {
+        new: null,
+      }
+    }).then(e => e.json()).then(messages => {
+      load_rooms()
+      console.log(messages)
+    })
+  })
+
+  // Affichage dynamique boutons intervenant dans ajout de presentations.
+  var addButton = document.getElementById("add_field");
+  var add_intervenants = 0
+
+  var input1 = document.getElementById("div_id_author1")
+  input1.hidden = true
+
+  var input2 = document.getElementById("div_id_author2")
+  input2.hidden = true
+
+  addButton.addEventListener("click", function () {
+
+    add_intervenants++
+    console.log(add_intervenants)
+    var form = document.querySelector("#form_pres");
+    console.log(form)
+
+    switch (add_intervenants) {
+      case 1:
+        input1.hidden = false
+        // console.log(input1)
+        break;
+      case 2:
+        input2.hidden = false
+        // console.log(input2)
+        break;
+      default:
+        console.log(`Sorry, we are out of ${add_intervenants}.`)
+    }
+  });
+
+  //ajouter une session 
+  function add_session() {
+
+    let url = "{% url 'planning:session-ajax' 1234 %}".replace(/1234/, room_sel);
+    const dataToSend = JSON.stringify({
+      "title": document.getElementById("sess_name").value,
+      "id": document.getElementById("sess_id").value,
+      "time1": document.getElementById("sess_time1").value,
+      "time2": document.getElementById("sess_time2").value,
+      "date": date_sel,
+    });
+    alert(dataToSend);
+    fetch(url, {
+      method: "POST",
+      credentials: 'same-origin',
+      headers: {
+        "Content-Type": 'application/json',
+        'X-CSRFToken': csrf_token
+      },
+      body: dataToSend
+    }).then(e => e.json()).then(messages => {
+      load_planning(room_sel);
+      document.getElementById("sess_id").value = -1;
+    });
+  }
+
+  //ajouter une pres 
+  function add_prest() {
+
+    let url = "{% url 'planning:pres-ajax' 1234 %}".replace(/1234/, sess_sel);
+    const dataToSend = JSON.stringify({
+      "title": document.getElementById("pres_name").value,
+      "id": document.getElementById("pres_id").value,
+      "author": document.getElementById("pres_author").value,
+      "author1": document.getElementById("pres_author1").value,
+      "author2": document.getElementById("pres_author2").value,
+      "duration": document.getElementById("pres_duration").value,
+      "date": date_sel,
+    });
+    fetch(url, {
+      method: "POST",
+      credentials: 'same-origin',
+      headers: {
+        "Content-Type": 'application/json',
+        'X-CSRFToken': csrf_token
+      },
+      body: dataToSend
+    }).then(e => e.json()).then(messages => {
+      load_planning(room_sel);
+      document.getElementById("pres_id").value = -1
+    });
+
+    console.log(document.getElementById("pres_author").value)
+    console.log(document.getElementById("pres_author1").value)
+    console.log(document.getElementById("pres_author2").value)
+
+  }
+
+  var id_pres, old_sel = "";
+  var session_id = -1; //pour bien classer les session 
+  let planning_container = document.querySelector(".planning-area");
+
+  // selection de la salle
+  function setRoomLive(room_nb, room_id, nbTotal, moderator) {
+
+    for (let i = 1; i <= nbTotal; i++) {
+      document.getElementById('room_id' + i).style.color = '#000000';
+      document.getElementById('room_id' + i).style.borderBottom = document.getElementById('room_id' + i).style
+        .borderTop;
+    }
+    document.getElementById('room_id' + room_nb).style.borderBottom = "2px solid #1ce";
+
+    load_planning(room_id);
+    room_sel = room_id;
+  }
+
+  // selection de la date
+  function setDate(date) {
+    date_sel = date;
+    load_planning(room_sel);
+  }
+  //chargement de la page
+  $(document).ready(function () {
+    
+    document.getElementById("form_sess").style.display = "block";
+    document.getElementById("form_pres").style.display = "none";
+    document.getElementsByName('radio_dates')[0].checked = true;
+    date_sel = document.getElementsByName('radio_dates')[0].value
+    document.getElementById('room_id1').click();
+  });
+
+  function load_rooms() {
+
+    let url = "{% url 'planning:load-ajax' %}";
+    fetch(url)
+      .then(e => e.json())
+      .then(messages => {
+        let div = document.getElementById("rooms");
+        if (!div) {
+          console.error("L'élément avec l'ID 'rooms' n'existe pas");
+          return;
+        }
+        // div.innerHTML = '';
+        let message = messages.pop();
+        construct_rooms(message);
+        console.log(message)
+        location.reload()
+        // btn = document.createElement("button");
+        // btn.innerHTML = "+"
+        // btn.setAttribute("id", "add_room");
+        // btn.setAttribute("class", "btn")
+        // div.appendChild(btn)
+      })
+  }
+
+  //affichage du planning de la journee et de la salle
+  function load_planning(room_id) {
+
+    planning_container.innerHTML = '';
+    session_id = -1;
+    let url = "{% url 'planning:planning-ajax' 1234 5678 %}".replace(/1234/, room_id.toString()).replace(/5678/,
+      date_sel);
+    fetch(url)
+      .then(e => e.json())
+      .then(messages => {
+
+        for (message of messages) {
+          construct_planning(message);
+        }
+        // si vide on affiche ajout de session
+        if (messages.length == 0) {
+          document.getElementById("form_sess").style.display = "block";
+          document.getElementById("form_pres").style.display = "none";
+        }
+      })
+  }
+
+  //On va chercher la liste des jours et on les affiche un par un
+  function construct_rooms(room) {
+
+    let div = document.getElementById("rooms");
+    let a = document.createElement("a");
+    a.href = "javascript:setRoomLive('" + room.number + "." + room.id + "')"; // à adapter en fonction de tes besoins
+    a.className = "list-group-item list-group-item-action text-center rounded-0";
+    a.style = "border-bottom: 2px solid #1ce; height: 34px; padding: 2px 7px;";
+    a.innerHTML = room.number + "." + room.name;
+    div.appendChild(a);
+    console.log(a)
+  }
+
+  
+
+  // ajoute des div pour affichage du planning 
+  function construct_planning(pres) {
+
+    let div = document.createElement("div");
+    if (session_id != pres.session_id) {
+      div.innerHTML = `
+                <li id="id_sess${ pres.session_id }" class="list-group-item list-group-item-warning  align-items-start  list-group-item-action" onclick="select_prest( 1,${ pres.session_id }, ${ pres.session_id } )">                
+                 <div class="d-flex w-100 justify-content-between">
+                  <h5 class="mb-1"> ${ pres.session_title } </h5>
+                  <span class=" float-end">  
+        
+                  </span> 
+                </div>  
+                  <div class="d-flex w-100 justify-content-between">
+                    <small> ${ pres.time_begin }  -> ${ pres.time_end } </small>
+                    <span class=" float-end">  
+                    </span> 
+                  </div>  
+                </li>
+                `
+      session_id = pres.session_id;
+    } else div.innerHTML = '';
+
+    id_pres = pres.id;
+    div.innerHTML += `
+        <li  id="id_pres${ pres.id }" class="presta list-group-item   align-items-start list-group-item-action" onclick="select_prest(0,${ pres.session_id }, ${ pres.id } )">  
+          <div id="part1_pres">
+            <div class="d-flex w-100 justify-content-between">
+              <h5 class="mb-1">${ pres.author }</h5>
+            </div>
+            <div class="d-flex w-100 justify-content-between">
+              <p class="mb-1"> ${ pres.title } </p>
+              <span class=" float-end"></span> 
+            </div>        
+            </div>
+          <div id="part2_pres">
+            <i id="btn-lancement" class="bi bi-play-circle-fill fa-3x" style="font-size: 3rem" onclick="ouvrir_presentation(${ pres.id })"></i>
+          </div>
+          <div id="part3_pres">
+            <span class="float-end" style="align-self:flex-end;">${ pres.duration } min &nbsp;&nbsp;</span>
+          </div>
+        </li>
+                    `
+    //div.setAttribute("id", "id_pres"+ pres.id ); 
+    planning_container.appendChild(div);
+    div.scrollIntoView()
+  }
+
+  function couleur_bouton(){
+    fetch("{% url 'planning:couleur_bouton' %}", {
+      method:"POST",
+      credentials: 'same-origin',
+      headers: {
+        "X-CSRFToken": csrf_token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        // fichier itération salle : 
+      }),
+    }).then(function (response) {
+      console.log("Présentation ouverte");
+    }).catch(function (error) {
+      console.log("Une erreur s'est produite : " + error)
+    });
+  }
+
+  function ouvrir_presentation(presentation_id) {
+    fetch("{% url 'planning:open_pres' %}", {
+      method:"POST",
+      credentials: 'same-origin',
+      headers: {
+        "X-CSRFToken": csrf_token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        id: presentation_id,
+        pupitre: true,
+      }),
+    }).then(function (response) {
+      console.log("Présentation ouverte");
+    }).catch(function (error) {
+      console.log("Une erreur s'est produite : " + error)
+    });
+  }
+
+  function select_prest(issession, sess_id, pres_id) {
+
+    // Réinitialisation des input Intervenants à 0.
+    add_intervenants = 0
+    input1.hidden = true
+    input2.hidden = true
+
+
+    // le reste
+    sess_sel = sess_id;
+    if (issession) {
+      tmp = document.getElementById("id_sess" + sess_id);
+      document.getElementById("form_sess").style.display = "block";
+      document.getElementById("form_pres").style.display = "none";
+      if (!on_edit) {
+        $("#form_sess :input").val('');
+        document.getElementById("sess_id").value = -1
+      }
+    } else {
+      tmp = document.getElementById("id_pres" + pres_id);
+      document.getElementById("form_sess").style.display = "none";
+      document.getElementById("form_pres").style.display = "block";
+      if (!on_edit) {
+        $("#form_pres :input").val('');
+        document.getElementById("pres_id").value = -1
+      }
+    }
+
+    if (old_sel)
+      old_sel.style.color = tmp.style.color;
+    tmp.style.color = "#1ce";
+    old_sel = tmp;
+
+    on_edit = false;
+  }
+  
+  //edit presentation 
+  function editPres(id, title, duration, author, author1, author2) {
+    // Réinitialisation des input Intervenants à 0.
+    add_intervenants = 0
+    input1.hidden = true
+    input2.hidden = true
+
+    // Valeur des Id récupérer donné depuis views.py et afficher sur la page
+
+    on_edit = true;
+    document.getElementById("pres_id").value = id
+    document.getElementById("pres_name").value = title
+    document.getElementById("pres_duration").value = duration
+    author0 = author.split(",")
+
+    document.getElementById("pres_author").selectedIndex = author0[0];
+    document.getElementById("pres_author1").selectedIndex = author0[1];
+    document.getElementById("pres_author2").selectedIndex = author0[2];
+  }
+  // edit une session
+  function editSession(id, title, time1, time2) {
+    on_edit = true;
+    document.getElementById("sess_id").value = id
+    document.getElementById("sess_name").value = title.trim()
+    document.getElementById("sess_time1").value = time1.trim()
+    document.getElementById("sess_time2").value = time2.trim()
+    console.log(id, title.trim(), time1.trim())
+  }
+  //supression session et presentation
+  function delSessPres(id, is_sess) {
+    if (confirm('Vous êtes sur de vouloir supprimer la vidéo en cours ?')) {
+      let url = "{% url 'planning:pres-del-ajax' 1234 %}".replace(/1234/, id);
+      fetch(url, {
+        method: "POST",
+        credentials: 'same-origin',
+        headers: {
+          "Content-Type": 'application/json',
+          'X-CSRFToken': csrf_token
+        },
+        body: JSON.stringify({
+          "id": id,
+          "is_sess": is_sess
+        })
+      }).then(e => e.json()).then(messages => {
+        load_planning(room_sel);
+        document.getElementById("pres_id").value = -1;
+        document.getElementById("sess_id").value = -1;
+      });
+    }
+  }
+</script>
+
+{% endblock %}

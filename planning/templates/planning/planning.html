@@ -1,0 +1,221 @@
+{% extends 'Planning/base.html' %}
+{% load static %}
+{% block title%}vod{% endblock %}
+
+{% block body %}
+
+<div class="container-fluid  p-0">
+    <div class="row g-2">
+        <div class="col-md-12">
+
+            {% for day in days %}
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="radio_dates" id="radio_dates" value="{{ day.date }}">
+                <label class="form-check-label" for="inlineRadio1">{{ day.date }}</label>
+            </div>
+            {% endfor %}
+
+            <div class="card">
+                <div class="card-body" data-mdb-perfect-scrollbar="true"
+                    style="padding-right:0; padding-left:0; height:695px; overflow-y: scroll;">
+
+                    <div class="list-group planning-area">
+                        <div class="ligne_planning">
+
+                            <div class="barre-horizontale">
+                                
+                            </div>
+
+                        </div>
+                        <div class="salle-col">
+                            {% for salle in rooms %}
+                            <div class="salle">
+                                <div class="titre_salle">{{ salle }}</div>
+                                <div class="session_horizontale"></div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Ajoutez la balise csrf_token pour générer le jeton CSRF -->
+            <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+
+            <!-- <input type="hidden" id="js_data" data-url="{% url 'planning:get_sessions' %}" data-csrf="{{ csrf_token }}" /> -->
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+
+<script>
+    $(document).ready(function () {
+        $('input[name="radio_dates"]').on('change', function () {
+            var selectedDate = $(this).val();
+            $.ajax({
+                url: '{% url "planning_plan" %}',
+                type: 'POST',
+                data: {
+                    'date': selectedDate,
+                    'csrfmiddlewaretoken': '{{ csrf_token }}'
+                },
+                success: function (response) {
+                    var sessions = response.sessions;
+                    var startTimes = response.start_times;
+                    var endTimes = response.end_times;
+                    var minHeure = response.min_heure;
+                    var maxHeure = response.max_heure;
+                    var heurechangenumber = response.heurechangenumber;
+                    
+
+
+                    // Récupérer l'élément barre-horizontale
+                    var barreHorizontale = $('.barre-horizontale');
+
+                    // Vider les div heure existantes
+                    barreHorizontale.empty();
+
+                    // Parcourir de minHeure à maxHeure 
+                    var minTime = moment(minHeure, 'HH:mm');
+                    var maxTime = moment(maxHeure, 'HH:mm');
+                    console.log(maxHeure)
+
+                    while (minTime <= maxTime) {
+
+                        // Créer div heure
+                        var heureDiv = $('<div class="heure">' + minTime.format('HH') +
+                            'h<br>|</div>');
+
+                        // Ajouter à barreHorizontale
+                        barreHorizontale.append(heureDiv);
+
+                        // Incrémenter minTime de 1 heure  
+                        minTime.add(1, 'hour');
+                    }
+
+                    // Parcourir les salles et afficher les sessions correspondantes
+                    $('.salle').each(function () {
+                        var salleElement = $(this);
+                        var salleName = salleElement.find('.titre_salle').text();
+
+                        // Vider les sessions précédentes
+                        salleElement.find('.session_horizontale').empty();
+
+                        if (sessions.hasOwnProperty(salleName)) {
+
+                            var salleSessions = sessions[salleName];
+
+                            var salleStartTimes = startTimes[salleName];
+                            var salleEndTimes = endTimes[salleName];
+                            // console.log(salleSessions)
+                            // console.log(salleStartTimes)
+                            // console.log(salleEndTimes)
+
+                            ecarttime = [];
+
+                            
+                            
+
+                            
+                            var debutsessionnumber = moment(minHeure, 'HH:mm:ss')
+                                                    .subtract(1, 'hours')
+                                                    .add(24, 'minutes')
+                                                    .format('HH:mm:ss');
+
+                            const debutsession = debutsessionnumber
+                            console.log(debutsession)
+                            // console.log(debutsession);
+
+                            for (i = 0; i < salleStartTimes.length; i++) {
+                                if (i == 0) {
+                                    var ecartsessionStartTime = salleStartTimes[i];
+                                    var ecartstartTime = moment(
+                                        ecartsessionStartTime, 'HH:mm');
+                                    var ecartdebutsession = moment(debutsession,
+                                        'HH:mm');
+                                    var duration = ecartstartTime.diff(
+                                        ecartdebutsession, 'minutes');
+                                    // console.log(duration)
+                                    ecarttime.push(duration)
+                                }
+                                if (i != 0) {
+                                    var ecartsessionStartTime = salleStartTimes[i];
+                                    var ecartsessionEndTime = salleEndTimes[i - 1];
+                                    var ecartstartTime = moment(
+                                        ecartsessionStartTime, 'HH:mm');
+                                    var ecartendTime = moment(ecartsessionEndTime,
+                                        'HH:mm');
+                                    var duration = ecartstartTime.diff(ecartendTime,
+                                        'minutes');
+                                    // console.log(duration)
+                                    ecarttime.push(duration)
+                                }
+                                console.log(salleStartTimes[i]);
+                            }
+
+                            // console.log(ecarttime)
+                            var countpercentage = 0;
+                            // Parcourir les sessions de la salle et les ajouter avec les horaires
+                            for (var i = 0; i < salleSessions.length; i++) {
+                                var sessionTitle = salleSessions[i];
+                                var sessionStartTime = salleStartTimes[i];
+                                var sessionEndTime = salleEndTimes[i];
+
+                                // Calculer la durée de la session en minutes
+                                var startTime = moment(sessionStartTime, 'HH:mm');
+                                // console.log(startTime)
+                                var endTime = moment(sessionEndTime, 'HH:mm');
+                                // console.log(endTime)
+                                var duration = endTime.diff(startTime, 'minutes');
+                                // console.log(duration)
+                                var heureduration = 0;
+                                console.log(heurechangenumber)
+
+                                //Pourcentage pour 1 minute
+                                pourcentageminutes = 0.11 - heurechangenumber * 0.00675;
+
+                                widthPercentage = duration * pourcentageminutes;
+                                console.log(widthPercentage)
+                                countpercentage = countpercentage + widthPercentage
+
+                                // Calculer l'écart entre session en pourcentage
+
+                                ecartWidthPercentage = ecarttime[i] * pourcentageminutes;
+
+                                countpercentage = countpercentage +
+                                    ecartWidthPercentage
+
+
+
+                                // Créer la div de session avec la largeur calculée
+                                var sessionElement = $(
+                                    '<div class="session_v2" style="width: ' +
+                                    widthPercentage + '%; margin-left: ' +
+                                    ecartWidthPercentage + '%;">' +
+                                    sessionTitle + '</div>');
+
+
+                                salleElement.find('.session_horizontale').append(
+                                    sessionElement);
+                                // salleElement.find('.session_horizontale').append(sessionTimeElement);
+                            }
+                            restecountpercentage = 100 - countpercentage
+
+                            var sessionReste = $('<div style="width: ' +
+                                restecountpercentage + '%;">.</div>');
+                            salleElement.find('.session_horizontale').append(
+                                sessionReste);
+                        }
+                    });
+                },
+                error: function (xhr, errmsg, err) {
+                    console.log(errmsg);
+                }
+            });
+        });
+    });
+</script>
+
+
+{% endblock %}

@@ -1,0 +1,142 @@
+{% extends 'Planning/base.html' %}
+{% load static %}
+{% block title%}vod{% endblock %}
+
+{% block body %}
+
+<div class="container-fluid  p-0">
+    <div class="row g-2">
+        <div class="col-md-12">
+
+            {% for day in days %}
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="radio_dates" id="radio_dates" value="{{ day.date }}">
+                    <label class="form-check-label" for="inlineRadio1">{{ day.date }}</label>
+                </div>
+            {% endfor %}
+            <div class="card">
+                <div class="card-body" data-mdb-perfect-scrollbar="true"
+                    style="padding-right:0; padding-left:0; height:695px; overflow-y: scroll;">
+                    <div class="list-group planning-area">
+                        <div class="ligne_planning">
+                            {% for room in rooms %}
+                            <div class="colonne_planning" id="room-{{ room.id }}">
+                                <div class="text_room_planning">
+                                    <p>{{ room }}</p>
+                                </div>
+                                <div class="vertical_colonne_planning d-flex" style="height: 41.4rem;">
+                                    
+                                    <div class="vr"></div>
+                                    
+                                </div>
+                            </div>
+                            {% endfor %}
+                            <div>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- <input type="hidden" id="js_data" data-url="{% url 'planning:get_sessions' %}" data-csrf="{{ csrf_token }}" /> -->
+        </div>
+    </div>
+</div>
+
+<!-- Inclure jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+    $(document).ready(function() {
+        $('input[name="radio_dates"]').on('change', function() {
+            var selectedDate = $(this).val();
+            $.ajax({
+                url: '{% url "show_plan" %}',
+                type: 'POST',
+                data: {
+                    'date': selectedDate,
+                    'csrfmiddlewaretoken': '{{ csrf_token }}'
+                },
+                success: function(response) {
+                    var sessions = response.sessions;
+
+                    $('.ligne_planning').empty();
+
+                    // Parcourir les salles et afficher les sessions correspondantes
+                    "{% for room in rooms %}"
+                        var roomName = '{{ room.name }}';
+                        var roomId = '{{ room.id }}';
+                        var columnId = 'room-' + roomId;
+                        var columnElement = $('<div class="colonne_planning" id="' + columnId + '">');
+                        var roomTextElement = $('<div class="text_room_planning"><p>' + roomName + '</p></div>');
+                        var verticalColumnElement = $('<div class="vertical_colonne_planning d-flex" style="height: 41.4rem;">');
+                        var vrElement = $('<div class="vr"></div>');
+                        
+                        // Vérifier si des sessions existent pour cette salle
+                        if (sessions.hasOwnProperty(roomName)) {
+                            var sessionTitles = sessions[roomName];
+
+                            // Convertir l'heure actuelle en objet Date
+                            var currentTime = new Date();
+
+                            // Index de la session actuelle (-1 signifie qu'aucune session n'est actuellement en cours)
+                            var currentSessionIndex = -1;
+
+                            // Parcourir les titres des sessions et les ajouter à la colonne
+                            for (var i = 0; i < sessionTitles.length; i++) {
+                                var sessionTitle = sessionTitles[i];
+                                var sessionStartTime = response.start_times[roomName][i];
+                                var sessionEndTime = response.end_times[roomName][i];
+                                var startTime = new Date(sessionStartTime);
+                                var endTime = new Date(sessionEndTime);
+
+                                // Vérifier si l'heure actuelle se situe entre l'heure de début et l'heure de fin de la session
+                                console.log(currentTime)
+                                console.log(startTime)
+                                console.log(endTime)
+                                if (currentTime >= startTime && currentTime <= endTime) {
+                                    currentSessionIndex = i;
+                                    
+                                    break;
+                                }
+                            }
+
+                            // Parcourir à nouveau les titres des sessions pour les afficher en utilisant l'index de la session actuelle
+                            for (var i = 0; i < sessionTitles.length; i++) {
+                                var sessionTitle = sessionTitles[i];
+                                var sessionStartTime = response.start_times[roomName][i];
+                                var sessionEndTime = response.end_times[roomName][i];
+                                var sessionElement = $('<div class="session">'+ sessionTitle +'</div>');
+                                var sessionTimeElement = $('</br><div class="session-time">' + sessionStartTime + ' - ' + sessionEndTime + '</div>');
+
+                                if (i === currentSessionIndex) {
+                                    sessionElement.addClass('current-session');  // Ajouter une classe CSS pour la session actuelle
+                                }
+
+                                sessionElement.append(sessionTimeElement);
+                                roomTextElement.append(sessionElement);
+                            }
+                        }
+
+                        columnElement.append(roomTextElement);
+                        columnElement.append(verticalColumnElement);
+                        columnElement.append(vrElement);
+
+                        $('.ligne_planning').append(columnElement);
+                    "{% endfor %}"
+                },
+                error: function(xhr, errmsg, err) {
+                    console.log(errmsg);
+                }
+            });
+        });
+    });
+</script>
+
+<style>
+    .current-session {
+        background-color: green;
+    }
+</style>
+
+{% endblock %}
