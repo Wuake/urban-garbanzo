@@ -19,9 +19,8 @@ from planning.models import File, Intervenant, Presentation, Session
 #*####################################################################################################################
 
 # * DEFINITION DES VARIABLES DE CONNEXION
-# host = "10.32.1.58" 
 host = "192.168.1.30"                    # ? ADRESSE IP DU SERVEUR FTP (DE LA MACHINE HOTE)
-# host = "10.32.1.58"
+# host = "10.32.1.2"
 user = "admin"
 password = "admin"
 #connect = ftp.ftplib(host, user, password) # ? CONNEXION AU SERVEUR FTP
@@ -89,11 +88,13 @@ def uploadfile(request):
                     presta.fichier_pptx = FileFolder
                     presta.save()
                     print(presta.fichier_pptx.path)
-
+                # * RAJOUT DE LA CONDITION DE CONNEXION AU SERVEUR
                 if int(end):
+                    print("VOICI UN TRUC CHIANT", fileName)
                     res = JsonResponse({'data':'Uploaded Successfully...','existingPath': fileName})
                 else:
-                    res = JsonResponse({'existingPath': fileName})
+                    print("VOICI UN TRUC CHIANT 2", fileName)
+                    res = JsonResponse({'existingPath': "fileName"})
                 # print("FILENAME : ", f"fichier_{file.id}.pptx")
                 file = File.objects.get(name=f"fichier_{file.id}.pptx")
                 transfer_file(file.id)
@@ -132,26 +133,20 @@ def uploadfile(request):
                     return res
     return render(request, 'Planning/upload.html', {'intervenant_all':intervenant_all})
 
-
 # * CONNEXION
-# def connection():
-#     server = ftp.FTP()
-#     print("CONNEXION AU SERVEUR...")
-#     try: 
-#         server.connect(host, 21)
-#         server.login(usr, password)
-#         print("CONNEXION AU SERVEUR REUSSIE")
-#         # * appeller les différentes fonctions ici
-#         #*########################################
-#         server.dir() # ? AFFICHE LE CONTENU DU REPERTOIRE, PAS BESSOIN DE PRINT
-#         server.mkd("Salle_2")  
-#         send_file(server, "media/presentations/")
-#         #*########################################
-#         server.quit()# ? DECONNEXION DU SERVEUR
-#         print("DECONNEXION DU SERVEUR")
-#     except ftp.all_errors as error:
-#         print("ERREUR DE CONNEXION AU SERVEUR")
-#         print(error)
+def connection_serv():
+    server = ftp.FTP()
+    print("CONNEXION AU SERVEUR...")
+    try: 
+        server.connect(host, 21)
+        server.login(user, password)
+        print("CONNEXION AU SERVEUR REUSSIE")
+        #*########################################
+        server.quit()# ? DECONNEXION DU SERVEUR
+        print("DECONNEXION DU SERVEUR")
+    except ftp.all_errors as error:
+        print("ERREUR DE CONNEXION AU SERVEUR")
+        print(error)
 
 # * CREATION D'UN REPERTOIRE CIBLE
 # @param nom_du_repertoire, lien d'enregistrement

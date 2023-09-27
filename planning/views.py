@@ -1,8 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 #from django.contrib.auth.decorators import login_required
 from django.http import Http404
-
-import socket
+import socket, shutil
 from django.db.models import Q
 from django.core.files.storage import FileSystemStorage
 from django.http.response import JsonResponse
@@ -29,6 +28,8 @@ def addOneRoom(new):
     if new :
         rooms = Room.objects.all()
         Room.objects.create(congress= new , number=str(rooms.count()+1), name="Salle "+str(rooms.count()+1))
+        new.number += 1
+        new.save()
         status = "salle ajoutée"
     else :
         #retournement d'erreur
@@ -41,7 +42,7 @@ def addOneRoom(new):
 def addRooms(new, nb):
     i=1
     while i <= int(nb) :
-        Room.objects.create(congress= new , number=str(i), name="Salle "+str(i))
+        Room.objects.create(congress= new, number=str(i), name="Salle "+str(i))
         i = i+1
         
 def addDay(new,date1, date2):
@@ -84,12 +85,28 @@ def addcongres(request):
         else : messages.error(request,'Formulaire invalide : '+add_form.errors)
        
     form = CongressForm()
-    return render(request, "Planning/congres.html", {"add_form":form}) 
+    if Congress.objects.all().count() != 0:
+        congres = Congress.objects.all().order_by('-id')[0]
+        dates = Day.objects.all()
+        date_debut = dates[0].date
+        date_fin = dates[len(dates)-1].date
+        print(congres)
+
+        return render(request, "Planning/congres.html", {
+            "add_form":form,
+            "congres": congres.name,
+            "debut": date_debut,
+            "fin": date_fin,
+            "salles": congres.number,
+            "description": congres.description 
+            },  ) 
+    else:
+        return render(request, "Planning/congres.html", {"add_form":form},  )
 
 # mise a jour de la presentation en cours dans le champ dedié de la room pour affichage dans le live
 #@user_passes_test(lambda u: u.is_superuser)
 def create(request):
-    congres = Congress.objects.get()
+    congres = Congress.objects.all().order_by('-id')[0]
     rooms = Room.objects.filter(congress__pk=congres.pk)
     days = Day.objects.filter(congress__pk=congres.pk)
     pform = PresentationForm()
@@ -388,7 +405,6 @@ def ajax_load_planning(request, pk, date):
 
     return JsonResponse(presentations_list, safe=False)
 
-
 # * charge les salles d'un congres
 # * prend en param l'id du congres
 def ajax_load_rooms(request):
@@ -401,11 +417,7 @@ def ajax_load_rooms(request):
         "congress": room.congress.name,
         "number": room.number,
     } for room in rooms]
-    print("Salut à tous c'est la salle")
     return JsonResponse(rooms_list, safe=False)
-
-
-
 
 #@login_required
 def ajax_add_session(request, pk):
@@ -661,8 +673,8 @@ def ouvrir_presentation(request):
     presentation = Presentation.objects.get(id=id_pres)
     # print(presentation)
     fichier_pptx = presentation.fichier_pptx
-    # print("le fichier =>" + fichier_pptx.name)
-    # print("Voici le lien vers le fichier =>" + fichier_pptx.path)
+    print("le fichier =>" + fichier_pptx.name)
+    print("Voici le lien vers le fichier =>" + fichier_pptx.path)
 
     open_ppt("127.0.0.1", fichier_pptx.path)
     
@@ -733,9 +745,10 @@ def on_laptop(request):
         data = json.loads(request.body)
         fichier_pptx = data.get('file', '')
         presentation = File.objects.get(path=fichier_pptx)
+        # print(presentation)
     except Exception as e:
         print(e)
-    if presentation != None and presentation.in_room == True:
+    if presentation.in_room:
         res = True
     else:
         res = False
@@ -744,6 +757,8 @@ def on_laptop(request):
     return JsonResponse({"success": res})
 
 # * CHAQUE PC A UNE SEULE SALLE ATTRIBUEE A TRAVERS TOUS LES CONGRES
+# ! UNE SEUL PROGRAMME TOURNE DONC SOUCIS
+# * ON VA TOUT CHERCHER D'UN COUP POUR LE MOMENT
 def fetching_files(request):
     # * ADDRESSE DU PC SERVEUR
     # host = "10.32.1.2"
@@ -802,9 +817,8 @@ def fetching_files(request):
                 adresse_ip = "Adresse IP non disponible"
     else:
         print("METHODE GET ET NON POST")
-    
-
     return JsonResponse({"adresse_ip": adresse_ip})
+
 # * CHANGE LA COULEUR DU BOUTON PLAY EN FONCTION DE L'IMPORT DU FICHIER
 def couleur_bouton(request):
     id = json.loads(request.body).get('id', '')
@@ -817,3 +831,51 @@ def couleur_bouton(request):
     res = 1 if serv and not laptop else 2 if serv and laptop else 0
 
     return JsonResponse({"status": res})
+
+def pupitre_trigger(request):
+    files = File.objects.all()
+    for file in files:
+        if file.on_server:
+            file.in_room = True
+            file.save()
+    return JsonResponse({"success": True})
+
+def delete_congres(request):
+    if Congress.objects.all().exists():
+        Congress.objects.all().delete()
+        path = "media/presentations/fichiers_importes/"
+        shutil.rmtree(path)
+        return JsonResponse({"success": True})
+    else:
+        return JsonResponse({"success": False})
+
+# * CHANGER LA DATE DE DEBUT/FIN DU CONGRES
+def changer(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            moment = data.get('moment', '')
+            new_date = data.get('new_date', '')
+            # new_date = datetime.strptime(new_date, "%Y-%m-%d").date()
+            dates = Day.objects.all()
+            congres = Congress.objects.all().order_by('-id')[0]
+            
+            if moment == "debut":
+                date_debut = new_date
+                date_fin = dates.last().date
+            else:
+                date_debut = dates.first().date
+                date_fin = new_date
+
+            if datetime.strptime(date_debut, "%Y-%m-%d").date() > datetime.strptime(date_fin, "%Y-%m-%d").date():
+                return JsonResponse({"success": False})
+            else:
+                # * suppression des anciennes dates
+                Day.objects.all().delete()
+                addDay(congres, datetime.strptime(date_debut, "%Y-%m-%d").date(), datetime.strptime(date_fin, "%Y-%m-%d").date())
+        except Exception as e:
+            print(e)
+        
+        return JsonResponse({"success": True})
+    else:
+        return JsonResponse({"success": False})

@@ -97,8 +97,25 @@
       }
     }).then(e => e.json()).then(messages => {
       alert("Synchronisation des fichiers effectuée !")
+      //trigger pour dire que le fichier est sur le pc pupitre
+      pupitre_trigger() 
       //arreter la popup de synchronisation 
       document.getElementById("overlay").style.display = "none";
+    })
+  }
+  function pupitre_trigger(){
+    fetch("{% url 'planning:pupitre_trigger' %}", {
+      method: "POST",
+      credentials: 'same-origin',
+      headers: {
+        "Content-Type": 'application/json',
+        'X-CSRFToken': csrf_token
+      },
+      body: {
+        salle: null, /*trouver un moyen de le chopper dynamiquement*/
+      }
+    }).then(e => e.json()).then(messages => {
+      //faire un truc utile ici
     })
   }
   // Ajoute une salle quand on clique sur le bouton + ( id="add_room" )

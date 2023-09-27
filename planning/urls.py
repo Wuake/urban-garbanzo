@@ -1,4 +1,4 @@
-from django.urls import path , re_path
+from django.urls import path, re_path
 
 from . import views
 
@@ -25,5 +25,8 @@ urlpatterns = [
     path("check_mark/", views.check_mark, name="check_mark"),
     path("on_laptop/", views.on_laptop, name="on_laptop"),
     path("fetching_files/", views.fetching_files, name="fetching_files"),
+    path("pupitre_trigger/", views.pupitre_trigger, name="pupitre_trigger"),
     path("couleur_bouton/", views.couleur_bouton, name="couleur_bouton"),
+    path("delete_congres/", views.delete_congres, name="delete_congres"),
+    path("changer", views.changer, name="changer"),
 ]

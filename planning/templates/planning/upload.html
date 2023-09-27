@@ -11,6 +11,7 @@
             <div class="card">
                 <div class="card-body" data-mdb-perfect-scrollbar="true"
                     style="padding-right:0; padding-left:0; height:695px; overflow-y: scroll;">
+                    <input type="text" id="searchInput" class="form-control" placeholder="Rechercher un intervenant">
 
                     <div class="list-group planning-area">
                         <!-- planning area by ajax -->
@@ -107,6 +108,28 @@
     var liste_personnes = document.querySelectorAll('.personne')
     var input_file = document.getElementById("fileupload");
 
+    function filterIntervenants(searchTerm) {
+        var intervenantList = $('.planning-area');
+        var intervenants = intervenantList.find('li');
+
+        intervenants.each(function() {
+            var intervenant = $(this);
+            var intervenantName = intervenant.find('h5').text().toLowerCase();
+            
+            if (intervenantName.indexOf(searchTerm.toLowerCase()) === -1) {
+                intervenant.hide();
+            } else {
+                intervenant.show();
+            }
+        });
+    }
+
+    // Écouter l'événement de saisie dans la barre de recherche
+    $('#searchInput').on('input', function() {
+        var searchTerm = $(this).val();
+        filterIntervenants(searchTerm);
+    });
+
     // Fonction appelée lors de la sélection du fichier
     function handleFileSelection(event) {
         const file = event.target.files[0];
@@ -140,6 +163,8 @@
     }
     function popup_close() {
         document.getElementById("overlay").style.display = "none";
+        // //relaod la page
+        window.location.reload();
     }
 
     // gestion de l'affichage des présentations
@@ -180,7 +205,7 @@
                     file_check(id_presta).then(res => {
                         
                         if (res == true){
-                            // console.log("overwrite", confirm_overwrite());
+                            // console.log("overwrite", confirm_overwrite());                            
                             //s'éxécute dans le if
                             if(confirm_overwrite() == false){
                                 //mettre un timer pour que la popup ait le temps de s'afficher
@@ -282,7 +307,7 @@
         //test si la réponse est ok
         .then(response => response.json())
         .then(data => {
-            if (data.success == true) {
+            if (data.success) {
                 console.log(data.success)
                 document.getElementById(`laptop_${ presentation.id }`).hidden = false
             } else {

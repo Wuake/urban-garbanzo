@@ -43,7 +43,7 @@
                     {% csrf_token %}
                     {{ Intervenant_form|crispy }}
                     <hr>
-                    <button type="submit" class="btn btn-info" id="sess_submit">Valider Session</button>
+                    <button type="submit" class="btn btn-info" id="sess_submit">Valider</button>
                 </form>
             </div>
 
@@ -63,8 +63,15 @@
 
 
 <script type="text/javascript" defer>
+    // document.get.elementById('sess_submit').addEventListener('click', function () {
+    //     setTimeout(0.1, function (){
+    //         window.location.href = window.location.href;
+    //     })
+        
+    // });
+    
     $(document).ready(function () {
-        // Fonction de filtrage des intervenants en fonction de la recherche
+        // Fonction de filtrage dwindow.location.href = window.location.href;es intervenants en fonction de la recherche
         function filterIntervenants(searchTerm) {
             var intervenantList = $('.planning-area');
             var intervenants = intervenantList.find('li');
@@ -146,6 +153,9 @@
                         content.append(img, name, debutdiv);
                         newIntervenant.append(content);
                         intervenantList.append(newIntervenant);
+
+                        //refresh la page pour mettre à jour la liste des intervenants
+                        window.location.reload(true);
                     } else {
                         console.log(response.errors);
                     }
