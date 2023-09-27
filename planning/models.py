@@ -16,7 +16,7 @@ class Congress(models.Model):
 # Create your models here.
 class Day(models.Model):
     congress = models.ForeignKey(Congress, related_name="confs_days", on_delete=models.CASCADE)
-    date = models.CharField(primary_key=True, max_length=24) #primary_key=True
+    date = models.CharField( max_length=24) #primary_key=True
     
     def __str__(self):
         return str(self.date)
@@ -24,7 +24,7 @@ class Day(models.Model):
 # Create your models here.
 class Room(models.Model):
 	congress = models.ForeignKey(Congress, related_name="event_conf_name", on_delete=models.CASCADE)
-	#moderator = models.ForeignKey(User, related_name="chat_moderator", on_delete=models.CASCADE , default=1)
+	ip_server = models.CharField(max_length=40,default='')
 	name = models.CharField(max_length=250)
 	number = models.SmallIntegerField(default=1)  # numero de la salle pour cle du live
 	inprogress = models.CharField(max_length=250, blank=True) # titre presentation en cours dans l'attente
@@ -35,7 +35,7 @@ class Room(models.Model):
 # Create your models here.
 class Session(models.Model):
     room = models.ForeignKey(Room, related_name="event_conf_room", on_delete=models.CASCADE)
-    date = models.ForeignKey(Day, to_field='date', default='self.date', on_delete=models.CASCADE)
+    date = models.ForeignKey(Day,  related_name="event_day_session", on_delete=models.CASCADE)
     title = models.CharField(max_length=250)
     order = models.SmallIntegerField(default=1)
     time_start = models.TimeField(default=now, blank=True)
@@ -66,12 +66,10 @@ class File(models.Model):
 
 class Presentation(models.Model):
 	session = models.ForeignKey(Session, related_name="event_conf_name", on_delete=models.CASCADE)
-	title = models.CharField(max_length=250, default=".............")
+	title = models.CharField(max_length=250, default="")
 	# author = models.CharField(max_length=100,  default="........d.....")
 	duration = models.SmallIntegerField(default=30)
-	fichier_pptx = models.OneToOneField(File, on_delete=models.CASCADE, null=True, blank=True)
-
-
+	fichier_pptx = models.OneToOneField(File, on_delete=models.SET_NULL, null=True, blank=True)
 
 	def __str__(self):
 		return self.title
@@ -80,19 +78,20 @@ class Presentation(models.Model):
 class Intervenant(models.Model):
     def __str__(self):
         return f'{self.nom} {self.prenom}'
-
-    nom = models.fields.CharField(max_length=50)
-    prenom = models.fields.CharField(max_length=50)
+    
+    congress = models.ForeignKey(Congress,default='', null= True,related_name="speaker_congres", on_delete=models.CASCADE)
+    nom = models.CharField(max_length=50)
+    prenom = models.CharField(max_length=50)
     logo = models.ImageField(upload_to='', blank=True, null=True)
 
     def to_json(self):
         return {
             'id': self.id,
-            'nom_complet': f'{self.nom} {self.prenom}',
+            'nom': self.nom,
+            'prenom': self.prenom,
             'logo_url': self.logo.url
         }
           
-    
 class InterPresent(models.Model):
 
     def __str__(self):

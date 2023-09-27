@@ -1,11 +1,11 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 import requests
 from django import http
 
 import socket
 
 def home(request):
-	return render(request, 'pages/home.html')
+    return redirect( "planning:home" )
 
 def handler404(request, exception):
 	return render(request,'errors/404.html', {'error': exception},status=404)

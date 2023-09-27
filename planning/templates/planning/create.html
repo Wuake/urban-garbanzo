@@ -2,10 +2,10 @@
 {% load static %}
 
 {% block body %}
+
 {% load crispy_forms_tags %}
 <div class="row">
-  <div class="col-md-12">
-    <div class="list-group list-group-horizontal">
+  <div class="col-md-12">    
       <div class="list-group list-group-horizontal" id="rooms">
         {% for room in rooms %}
         <a href="javascript:setRoomLive('{{room.number}}', '{{room.id}}', '{{ rooms|length }}', '{{room.moderator.id}}')"
@@ -15,9 +15,8 @@
         {% empty %}
         <p> Désolé, pas de salles disponibles !</p>
         {% endfor %}
-      </div>
-      <button id="add_room" class="btn">+</button>
-    </div>
+      
+      </div> 
     <!-- <hr class="divider" /> -->
   </div>
   <br>
@@ -30,8 +29,8 @@
 
       {% for day in days %}
       <div class="form-check form-check-inline">
-        <input class="form-check-input" type="radio" name="radio_dates" id="radio_dates" value={{day.date}}
-          onclick="setDate('{{day.date}}')">
+        <input class="form-check-input" type="radio" name="radio_dates" id="radio_dates" value={{day.date}};{{day.id}}
+          onclick="setDate('{{day.id}}', '{{day.date}}')">
         <label class="form-check-label" for="inlineRadio1">{{day.date}}</label>
       </div>
       {% endfor %}
@@ -69,7 +68,8 @@
   send_btn.addEventListener('click', add_session);
   let pres_submit = document.getElementById("pres_submit");
   pres_submit.addEventListener('click', add_prest);
-  let date_sel = "12-12-2012";
+  let date_sel = "";
+  let date_id = "0";
   let room_sel = 0;
   let sess_sel = 0;
   let on_edit = false;
@@ -137,8 +137,9 @@
       "time1": document.getElementById("sess_time1").value,
       "time2": document.getElementById("sess_time2").value,
       "date": date_sel,
+      "dateid": date_id,
     });
-    alert(dataToSend);
+   
     fetch(url, {
       method: "POST",
       credentials: 'same-origin',
@@ -204,16 +205,16 @@
   }
 
   // selection de la date
-  function setDate(date) {
-    date_sel = date;
+  function setDate(id,date) {
+    date_sel = date; 
+    date_id = id;
     load_planning(room_sel);
   }
   //chargement de la page
   $(document).ready(function () {
     document.getElementById("form_sess").style.display = "block";
     document.getElementById("form_pres").style.display = "none";
-    document.getElementsByName('radio_dates')[0].checked = true;
-    date_sel = document.getElementsByName('radio_dates')[0].value
+    document.getElementsByName('radio_dates')[0].click() ;
     document.getElementById('room_id1').click();
   });
 
@@ -246,8 +247,7 @@
     
     planning_container.innerHTML = '';
     session_id = -1;
-    let url = "{% url 'planning:planning-ajax' 1234 5678 %}".replace(/1234/, room_id.toString()).replace(/5678/,
-      date_sel);
+    let url = "{% url 'planning:planning-ajax' 1234 5678 %}".replace(/1234/, room_id.toString()).replace(/5678/,date_id);
     fetch(url)
       .then(e => e.json())
       .then(messages => {

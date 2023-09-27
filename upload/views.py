@@ -5,26 +5,6 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from planning.models import File, Intervenant, Presentation, Session
 
-# * FONCTION DECORATRICE POUR UN MEILLEUR FEEDBACK
-# ! FAIT PLANTER PARCE QU'ELLE RETOURNE PAS UNE REPONSE HTTP
-# def decorator_feedback(func):
-#     def wrapper(*args, **kwargs):
-#         print("DEBUT DU TELECHARGEMENT")
-#         func(*args, **kwargs)
-#         print("FIN DU TELECHARGEMENT")
-#     return wrapper
-
-#*####################################################################################################################
-#*                                             FONCTIONS POUR FTP                                                    #
-#*####################################################################################################################
-
-# * DEFINITION DES VARIABLES DE CONNEXION
-host = "192.168.1.30"                    # ? ADRESSE IP DU SERVEUR FTP (DE LA MACHINE HOTE)
-# host = "10.32.1.2"
-user = "admin"
-password = "admin"
-#connect = ftp.ftplib(host, user, password) # ? CONNEXION AU SERVEUR FTP
-
 def uploadfile(request):
     relative_path = f"media/presentations/fichiers_importes"
     intervenant_all = Intervenant.objects.all()
@@ -32,106 +12,156 @@ def uploadfile(request):
     if request.method == 'POST':  
         file = request.FILES['file'].read()
         fileName= request.POST['filename']
-        existingPath = request.POST['path']
+        file_id = request.POST['path']
         end = request.POST['end']
         nextSlice = request.POST['nextSlice']
         aborted = request.POST['aborted']
         id_presta = request.POST['id_presta']
 
-        print("____________SIZE______________", len(file))
-
-        if len(file) == 0 or len(file) > 10000000000:
-            return JsonResponse({'data':'LA FICHIER EST TROP VOLUMINEUX (MAX 1GO)'})
+        presta = Presentation.objects.get(id=id_presta)
+        
 
         # print("_________aborted____________", aborted) # ? SI 1 ON SUPPRIME LE FICHIER 
-        if file=="" or fileName=="" or existingPath=="" or end=="" or nextSlice=="" :
+        if file=="" or fileName=="" or file_id=="" or end=="" or nextSlice=="" :
             res = JsonResponse({'data':'Invalid Request....'})
             return res
         else:
-            # ? SI LE FICHIER N'EXISTE PAS 
-            if existingPath == 'null':
-                # path = 'media/presentations/' + fileName
-                path = 'media/presentations/unamed.pptx'
-                path_download = 'media/presentations/fichiers_importes/fichier_.pptx'
+            # si fichier existe  chargement par chunk (morceau) cad on a déja commencé le chargement
+            if file_id == 'null':
+                path = f"media/presentations/fichiers_importes/fichier_{id_presta}.pptx"
                 # * CREATION DU REPO PRESTA_IMPORTEES
                 try:
                     if not os.path.exists(relative_path):
                         os.mkdir(relative_path)
                 except Exception as e:
                     print("Erreur lors de la création du répertoire local:", str(e))
+                    
                 # * ON ECRIT LES FICHIERS EN LOCAL
                 with open(path, 'wb+') as destination:
                     destination.write(file)
-                with open(path_download, 'wb+') as destination:
-                    destination.write(file)
+               
                 FileFolder = File()# ? CREATION DE L'INSTANCE
-                # FileFolder.existingPath = path
                 FileFolder.path = path
                 FileFolder.eof = end
-                FileFolder.name = "unamed.pptx"
-                FileFolder.on_server = True
+                FileFolder.name = f"fichier_{id_presta}.pptx"
+                FileFolder.on_server = False
                 FileFolder.save()
-
-                # ? RENOMMAGE DU FICHIER SUR LE SERVEUR
-                file = File.objects.get(name="unamed.pptx")
-                file.name = f"fichier_{file.id}.pptx"
-                # ! SI JE CHANGE LE PATH ON PEUT PLUS TESTER LE FICHIER EN LOCAL
-                file.path = f"media/presentations/fichiers_importes/fichier_{file.id}.pptx"
-                file.existingPath = f"media/presentations/fichier_{file.id}.pptx" # * PAS SUR D'EN AVOIR BESOIN
-                file.save()
-                # ? ET DU FICHIER LOCAL
-                os.rename(path_download, f"media/presentations/fichiers_importes/fichier_{file.id}.pptx"  )
 
                 #lien entre le fichier upload et la présentation
                 if id_presta != 'null':
                     presta = Presentation.objects.get(id=id_presta)
                     presta.fichier_pptx = FileFolder
                     presta.save()
-                    print(presta.fichier_pptx.path)
+                    
                 # * RAJOUT DE LA CONDITION DE CONNEXION AU SERVEUR
                 if int(end):
-                    print("VOICI UN TRUC CHIANT", fileName)
-                    res = JsonResponse({'data':'Uploaded Successfully...','existingPath': fileName})
+                    FileFolder.in_room = transfer_file(id_presta, presta.session.room.ip_server)
+                    FileFolder.on_server = True
+                    FileFolder.save()
+                    res = JsonResponse({'data':'Uploaded Successfully...','existingPath': FileFolder.name})
                 else:
-                    print("VOICI UN TRUC CHIANT 2", fileName)
-                    res = JsonResponse({'existingPath': "fileName"})
-                # print("FILENAME : ", f"fichier_{file.id}.pptx")
-                file = File.objects.get(name=f"fichier_{file.id}.pptx")
-                transfer_file(file.id)
+                    res = JsonResponse({'existingPath': FileFolder.id})
+                
                 return res
             # ? SI LE FICHIER EXISTE
             else:
-                path = 'media/presentations/' + existingPath
-                #print("_________aborted____________", path, existingPath)
-                model_id = File.objects.get(existingPath=path)
+                path = 'media/presentations/fichiers_importes/' + file_id
+                print("_________ chunked ____________", path, file_id)
+                infile = File.objects.get(id=int(file_id) )
                 
-                if  model_id.name == fileName and aborted=='1': 
-                    print("_________DELETED_________",  existingPath)
-                    model_id.delete()
-                    os.remove(path)
+                
+                if  infile.id == int(file_id) and aborted=='1': 
+                    print("_________DELETED_________",  file_id)
+                    infile.delete()
+                    os.remove(infile.path)
                     res = JsonResponse({'data':'Upload Aborted!!', 'existingPath':'Aborted'})
                     return res
-                elif model_id.name == fileName:
-                    if not model_id.eof:
-                        with open(path, 'ab+') as destination: 
+                elif infile.id == int(file_id):
+                    if not infile.eof:
+                        with open(infile.path, 'ab+') as destination: 
                             destination.write(file)
+                        
                         if int(end):
-                            model_id.eof = int(end)
-                            model_id.save()
-                            res = JsonResponse({'data':'Uploaded Successfully','existingPath':model_id.existingPath})
+                            infile.eof = int(end)
+                            infile.in_room = transfer_file(id_presta,presta.session.room.ip_server)
+                            infile.on_server = True
+                            infile.save()
+                            res = JsonResponse({'data':'Uploaded Successfully','existingPath':infile.name, 'status':2 if infile.in_room else 1 })
                         else:
-                            res = JsonResponse({'existingPath':model_id.name})    
+                            res = JsonResponse({'existingPath':file_id})    
                         return res
                     else:
                         res = JsonResponse({'data':'EOF found. Invalid request'})
                         return res
                 else:
-                    res = JsonResponse({'data':'No such file exists in the existingPath'})
-                    print("__________TRANSFERT EN COURS___________")
-                    file = File.objects.get(name=fileName)
-                    transfer_file(file.id)
+                    res = JsonResponse({'data':'No such file exists on the file_id'})
+                    
                     return res
     return render(request, 'Planning/upload.html', {'intervenant_all':intervenant_all})
+
+
+#*####################################################################################################################
+#*                                             FONCTIONS POUR FTP                                                    #
+#*####################################################################################################################
+
+# * DEFINITION DES VARIABLES DE CONNEXION
+# host = "10.32.1.58" 
+# host = "192.168.1.30"                    # ? ADRESSE IP DU SERVEUR FTP (DE LA MACHINE HOTE)
+host = "10.32.1.7"
+user = "admin"
+password = "webeeconf"
+#connect = ftp.ftplib(host, user, password) # ? CONNEXION AU SERVEUR FTP
+
+
+# * TRANSFERT D'UN FICHIER PPTX
+# @param nom_du_fichier matrixé (id_presta), lien d'enregistrement
+def transfer_file(id, iphost):
+    try:
+        server = ftp.FTP()
+        server.connect(iphost, 21)
+        server.login(user, password)
+        print("CONNEXION AU SERVEUR REUSSIE")
+        # * VENIR CREER LE DOSSIER POUR LE RANGER DEDANS
+        print("CREATION DU REPERTOIRE...")
+        salle = "pptx_files" #create_repo(server, id)
+
+        if salle:
+            try:
+                print("DEBUT DU TRANSFERT...")
+                pptxfile = f"media/presentations/fichiers_importes/fichier_{id}.pptx"
+                with open(pptxfile, "rb") as fichier: 
+                    msg = server.storbinary(f"STOR {salle}/fichier_{id}.pptx", fichier) 
+               
+                if( int(msg[0:3])==226) :
+                    print("Transfert de fichier ok : ")
+                    return True
+                else :
+                    return False
+            except Exception as e:
+                print("Erreur lors de l'envoi du fichier :", str(e))
+                server.quit()
+                return False
+    except:
+        print("ERREUR DE CONNEXION AU SERVEUR")
+        return False
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # * CONNEXION
 def connection_serv():
@@ -152,31 +182,7 @@ def connection_serv():
 # @param nom_du_repertoire, lien d'enregistrement
 # def create_folder():
 
-# * TRANSFERT D'UN FICHIER PPTX
-# @param nom_du_fichier matrixé (id_presta), lien d'enregistrement
-def transfer_file(id):
-    try:
-        server = ftp.FTP()
-        server.connect(host, 21)
-        server.login(user, password)
-        print("CONNEXION AU SERVEUR REUSSIE")
-        # * VENIR CREER LE DOSSIER POUR LE RANGER DEDANS
-        print("CREATION DU REPERTOIRE...")
-        salle = create_repo(server, id)
 
-        if salle:
-            try:
-                print("DEBUT DU TRANSFERT...")
-                with open("media/presentations/unamed.pptx", "rb") as fichier: # ? LIEN DU FICHIER QU'ON VEUT ENVOYER
-                    server.storbinary(f"STOR {salle}/fichier_{id}.pptx", fichier) # ? NOM QU'ON LUI DONNE SUR LE SERVEUR
-                server.quit()
-                print("TRANSFERT DU FICHIER REUSSI")
-            except Exception as e:
-                print("Erreur lors de l'envoi du fichier :", str(e))
-                server.quit()
-    except:
-        print("ERREUR DE CONNEXION AU SERVEUR")
-    
 def create_repo(server, id_file):
     file_obj = File.objects.filter(id=id_file).first()  # Récupérer l'objet File avec l'ID donné
     if file_obj:

@@ -9,13 +9,13 @@ class FileUpload {
     cancel_btn = document.getElementById("cancel_btn");
 
     //id de la présentation pour enregistrer au bon endroit
-    // id_presta = document.getElementById("btn_fichier").attributes["value_presta"].value;  
+    
     
     xhrajax;
     aborted = 0;
     constructor(input) {
         this.input = input
-        this.max_length = 1024 * 1024 * 1000; // * 1GB de taille max
+        this.max_length = 1024 * 1024 * 10; // * 1GB de taille max
     }
 
     create_progress_bar() {
@@ -48,6 +48,12 @@ class FileUpload {
     upload() {  
         // console.log(progress, progress_wrapper, progress_status, upload_btn, loading_btn, cancel_btn);
 
+        if(this.input.files[0].size > 1024 * 1024 * 1000) {  
+            this.show_alert("Le fichier est trop volumineux (MAX 1GO)", "warning")
+            //alert( 'Le fichier est trop volumineux (MAX 1GO)', this.input.files[0].size) ;
+            return;
+        }
+             
         if (! this.input.value) {
             progress_wrapper.classList.add("d-none");
             this.show_alert("No file selected", "warning")
@@ -83,16 +89,18 @@ class FileUpload {
         } else {
             end = 0;
         }
-
+        console.log("Uploading file : " + this.file.name,end, uploadedChunk , this.file.size);
         $('.textbox').text("Uploading file : " + this.file.name);
 
+        id_pres = document.getElementById("upload_btn").value;  
+       
         formData.append('file', currentChunk);
         formData.append('filename', this.file.name);
         formData.append('end', end);
         formData.append('path', existingPath);
         formData.append('nextSlice', nextChunk);
         formData.append('aborted', this.aborted);
-        formData.append('id_presta', id_presta);
+        formData.append('id_presta', id_pres);
 
         $.ajaxSetup({
             headers: {
@@ -126,6 +134,7 @@ class FileUpload {
             data: formData,
             error: function (xhr) {
                 self.reset();
+                document.getElementById("upload_btn").value=0;
                 self.show_alert(xhr.statusText, "warning");
             },
             success: function (res) {
@@ -137,14 +146,16 @@ class FileUpload {
                     else {
                         self.xhrajax.abort();
                         self.reset();
+                        document.getElementById("upload_btn").value=0;
                         self.show_alert(`Upload Aborted`, "warning");
                     }
 
                 } else {
                     // upload complete
                     $('.textbox').text(res.data);
+                    document.getElementById("upload_btn").value=res.status; // + 1 puisque le chargement est ok , status c'est la valeur in_room si aussi envoyé dans la salle
                     self.reset();
-                    self.show_alert(`Upload complet`, "success");
+                    self.show_alert(`Upload complet `, "success");
                 }
             }
         });
@@ -157,7 +168,7 @@ var uploader;
     $('#upload_btn').on('click', (event) => {
         event.preventDefault();
         uploader = new FileUpload(document.querySelector('#fileupload'))
-        console.log(document.querySelector('#fileupload'));
+        console.log( "file to upload : " , document.querySelector('#fileupload'));
         uploader.upload();
     });
 })(jQuery);

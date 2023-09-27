@@ -1,0 +1,83 @@
+{% extends 'Planning/base.html' %}
+{% load static %}
+{% block title%}Webeeconf{% endblock %}
+
+{% block body %}
+
+<div class="container">
+    <div class="row">
+        <hr>
+        <div class="col-md-8">
+            <div id="intro-example" class="p-5 text-center bg-image"  style="height:600px ; background-image: url('https://mdbcdn.b-cdn.net/img/new/slides/041.webp');">
+                
+                <div class="mask" style="height:500px ; background-color: rgba(0, 0, 0, 0.7);">
+                    <div class="d-flex justify-content-center align-items-center h-100">
+                      <div class="text-white">
+                        <h1 class="mb-3">BIENVENUE SUR WEBEECONF !! </h1>
+                        <h5 class="mb-4">LA PLATE FORME DE DIFFUSION WEB </h5>
+                      </div>
+                    </div>
+                </div>
+           </div>
+        </div>
+
+        <div class="col-md-4">
+            <br>
+            <br>
+            <h2 class="font-weight-bold mt-3"><i class="bi bi-ui-checks-grid text-info"></i> Choix d'un congrès </h2>
+                <hr>
+                <select id="congesList" class="form-select" multiple aria-label="multiple select example" style="height:200px">
+                    {% if congres_id == '1' %}
+                    
+                        {% endif %}
+                    {% for congres in congress %}  
+                        {% if congres_id == congres.id %}
+                            <option selected value={{congres.id}}> {{congres.name}}  {{congres.name}}  </option>
+                        {% else %}
+                            <option value={{congres.id}}> {{congres.name}}   </option>
+                        {% endif %}
+                    {% endfor %}
+                   
+                  </select>
+
+                <hr>
+                
+                <div class="d-flex w-100 justify-content-between">
+                    <button class="btn btn-info"  onclick="editSelCongres(1)" >Séléctionner</button>
+                    <span class=" float-end">  
+                        <button class="btn btn-secondary bi bi-plus-square text-info" onclick="editSelCongres(2)"></button>
+                        <button class="btn btn-secondary bi bi-pencil-square text-info" onclick="editSelCongres(3)" ></button>
+                    </span> 
+                </div>
+
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript" >
+   
+    
+    function editSelCongres(buttonId){
+            
+        if(buttonId==2) {
+            document.location.href="congres";
+        } else {
+            var e = document.getElementById("congesList"); 
+            if(e.selectedIndex>=0) {
+                var value = e.options[e.selectedIndex].value;
+                var text = e.options[e.selectedIndex].text;
+    
+                if(buttonId==1) {
+                    document.location.href="home?id="+value;
+                }else if(buttonId==3) {
+                    document.location.href="congres?id="+value;
+                }
+            }else {
+                alert("Merci de séléctionner un congrès pour continuer ! ");
+            }
+            
+        }
+           
+    }
+</script>
+{% endblock %}

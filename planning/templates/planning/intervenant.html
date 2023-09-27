@@ -7,26 +7,26 @@
 <div class="container">
     <div class="row">
         <hr>
-        <div class="col-md-6">
+        <div class="col-md-5">
             <div class="card">
                 <div class="card-body" data-mdb-perfect-scrollbar="true"
                     style="padding-right:0; padding-left:0; height:695px; overflow-y: scroll;">
 
-                    <input type="text" id="searchInput" class="form-control" placeholder="Rechercher un intervenant">
+                    <input type="text" id="searchInput" class="form-control" placeholder="Rechercher un intervenant"  style="border-radius: 0;">
 
                     <div class="list-group planning-area">
                         <!-- planning area by ajax -->
 
                         {% for intervenant in intervenants %}
-                        <li id="{{ intervenant.id }}"
+                        <li id="speaker_{{ intervenant.id }}"
                             class="list-group-item personne align-items-start list-group-item-action">
                             <div class="d-flex w-100 justify-content-between">
                                 <img src="{{ intervenant.logo.url }}"
                                     style="width: 75px;height: 75px;border-radius: 30rem;">
-                                <h5 class="mb-1" style="align-self: center;"> {{ intervenant.nom|upper }} {{  intervenant.prenom }} </h5>
+                                <h5 class="mb-1" style="align-self: center;">  {{  intervenant.prenom }} {{ intervenant.nom|upper }}</h5>
                                 <div>
-                                    <a href="#" class="bi-pencil-fill text-secondary edit-intervenant" data-id="{{ intervenant.id }}"></a>
-                                    <a href="#" class="bi-trash text-warning delete-intervenant" data-id="{{ intervenant.id }}"></a>
+                                    <a href="#" class="bi-pencil-fill text-secondary edit-intervenant" onclick="editSpeaker( {{ intervenant.id }})"></a>
+                                    <a href="#" class="bi-trash text-warning delete-intervenant" onclick="delSpeaker( {{ intervenant.id }})"></a>
                                 </div>
                             </div>
                         </li>
@@ -36,42 +36,133 @@
             </div>
         </div>
 
+        <div class="col-md-1">
+        </div>
         <div class="col-md-6">
             <br>
             <div id="intervenantFormContainer">
-                <form id="intervenantForm" method="POST" enctype="multipart/form-data">
+                <form id="speakerForm" method="POST" enctype="multipart/form-data">
                     {% csrf_token %}
                     {{ Intervenant_form|crispy }}
                     <hr>
-                    <button type="submit" class="btn btn-info" id="sess_submit">Valider</button>
-                </form>
-            </div>
-
-            <div id="editFormContainer" style="display: none;">
-                <form id="editIntervenantForm" method="POST" enctype="multipart/form-data">
-                    {% csrf_token %}
-                    <input type="hidden" id="editIntervenantId" name="id">
-                    {{ EditIntervenant_form|crispy }}
-                    <hr>
-                    <button type="submit" class="btn btn-info" id="edit_submit">Valider Modification</button>
-                    <button type="button" class="btn btn-secondary" id="cancel_edit">Annuler</button>
+                    <button type="button" class="btn btn-info" onclick="saveSpeaker()" >Valider 2 </button>
+                    <button type="button" class="btn btn-secondary" onclick="clearForm()" >Annuler</button>
                 </form>
             </div>
         </div>
     </div>
+    <input type="hidden" id="js_data"  data-csrf="{{csrf_token}}" />
 </div>
 
 
 <script type="text/javascript" defer>
-    // document.get.elementById('sess_submit').addEventListener('click', function () {
-    //     setTimeout(0.1, function (){
-    //         window.location.href = window.location.href;
-    //     })
-        
-    // });
+    let speaker_container = document.querySelector(".planning-area");
     
+    function editSpeaker(speakerID){
+            //<button type="submit" class="btn btn-info" onclick="editSpeaker()" id="edit_submit">Modifier</button>
+            var intervenantItem = $('#speaker_' + speakerID);
+            var intervenantName = intervenantItem.find('h5').text();
+            var intervenantLogo = intervenantItem.find('img').attr('src');
+            
+            // Remplir le formulaire de modification
+            $('#inter_id').val(speakerID);
+            $('#inter_name').val(intervenantName.trim().split(' ')[0]);  
+            $('#inter_surname').val(intervenantName.trim().split(' ')[1]);
+    }
+
+    function delSpeaker(speakerID){
+        let csrf_token = $("#js_data").attr("data-csrf");
+        var intervenantItem = $('#speaker_' + speakerID);
+        alert(speakerID) ; 
+        if (confirm('Êtes-vous sûr de vouloir supprimer cet intervenant ?')) {
+            let url = "{% url 'planning:delete_intervenant' 1234 %}".replace(/1234/, speakerID);
+            fetch(url, {
+              method: "POST",
+              credentials: 'same-origin',
+              headers: {
+                "Content-Type": 'application/json',
+                'X-CSRFToken': '{{csrf_token}}'
+              }
+            }).then(e => e.json()).then(response => {
+                if (response.success) {
+                    console.log('Intervenant supprimé avec succès.');
+                    // Supprimer l'intervenant de la liste
+                    intervenantItem.remove();
+                } else {
+                    console.log(response.errors);
+                }
+            });
+          }
+    }
+    // Annuler la modification
+    function clearForm() {
+        // Réinitialiser le formulaire
+        $('#inter_id').val('0');
+        $('#inter_name').val('');
+        $('#inter_surname').val('');
+        //$('#inter_logo').get(0).files[0].reset();
+        $('#inter_logo').val('');
+    }
+
+    function saveSpeaker() { 
+        let url =  "{% url 'planning:speaker' %}";
+        var formData = new FormData($('#speakerForm')[0]);
+
+        console.log(formData);
+        //formData.append('nom', 'lahcen');
+   
+        console.log(JSON.stringify(formData));
+        fetch(url, {
+        method: "POST",
+        credentials: 'same-origin',
+        headers: {
+
+            'X-CSRFToken': '{{csrf_token}}'
+        },
+        body: formData,
+        }).then(e => e.json()).then(response => {
+            
+            if (response.success) {
+                console.log('Intervenant modifié avec succès.', response.speaker);
+                
+                // Mettre à jour les informations de l'intervenant dans la liste
+                if( parseInt($('#inter_id').val()) > 0 ) {
+                    var intervenantItem = $('#speaker_' + response.speaker.id);
+                    intervenantItem.find('h5').text(response.speaker.prenom+' '+response.speaker.nom);
+                    intervenantItem.find('img').attr('src', response.speaker.logo_url);
+                }    
+                else
+                    constructSpeaker(response.speaker);
+                // Réinitialiser le formulaire
+                clearForm();
+            } else {
+                console.log("response fetch error" , response.errors);
+            }
+        });
+        
+    }
+
+    function constructSpeaker(speaker) {
+  
+        let div = document.createElement("div");
+        div.innerHTML += `
+        <li id="speaker_'${ speaker.id }'" class="list-group-item personne align-items-start list-group-item-action">
+            <div class="d-flex w-100 justify-content-between">
+            <img src="${ speaker.logo_url }"  style="width: 75px;height: 75px;border-radius: 30rem;">
+            <h5 class="mb-1" style="align-self: center;"> ${ speaker.prenom} ${ speaker.nom}  </h5>
+            <div>
+                <a href="#" class="bi-pencil-fill text-secondary edit-intervenant" onclick="editSpeaker( ${ speaker.id })"></a>
+                <a href="#" class="bi-trash text-warning delete-intervenant" onclick="delSpeaker(${ speaker.id })"></a>
+            </div>
+            </div>
+        </li>
+        `
+
+        speaker_container.appendChild(div);
+    }
+      
     $(document).ready(function () {
-        // Fonction de filtrage dwindow.location.href = window.location.href;es intervenants en fonction de la recherche
+        // Fonction de filtrage des intervenants en fonction de la recherche
         function filterIntervenants(searchTerm) {
             var intervenantList = $('.planning-area');
             var intervenants = intervenantList.find('li');
@@ -79,9 +170,8 @@
             intervenants.each(function() {
                 var intervenant = $(this);
                 var intervenantName = intervenant.find('h5').text().toLowerCase();
-                
-
-                if (intervenantName.indexOf(searchTerm.toLowerCase()) === -1) {
+    
+                if ( intervenantName.indexOf(searchTerm.toLowerCase()) === -1 ) {
                     intervenant.hide();
                 } else {
                     intervenant.show();
@@ -94,178 +184,7 @@
             var searchTerm = $(this).val();
             filterIntervenants(searchTerm);
         });
-        
-        $('#intervenantForm').submit(function (e) {
-            e.preventDefault();
-            var form = $(this);
-            var url = form.attr('action');
-            var formData = new FormData(this);
 
-            $.ajax({
-                type: 'POST',
-                url: url,
-                data: formData,
-                processData: false,
-                contentType: false,
-                success: function (response) {
-                    if (response.success) {
-                        console.log('Intervenant enregistré avec succès.');
-
-                        // Ajouter le nouvel intervenant à la liste
-                        var intervenantList = $('.planning-area');
-                         var newIntervenant = $('<li/>', {
-                            id: response.intervenant.id,
-                            class: 'list-group-item personne align-items-start list-group-item-action'
-                        });
-
-                        var content = $('<div/>', {
-                            class: 'd-flex w-100 justify-content-between'
-                        });
-
-                        var img = $('<img/>', {
-                            src: response.intervenant.logo_url,
-                            style: 'width: 75px;height: 75px;border-radius: 30rem;'
-                        });
-
-                        var name = $('<h5/>', {
-                            class: 'mb-1',
-                            style: 'align-self: center;',
-                            text: response.intervenant.nom_complet
-                        });
-
-                        var debutdiv = $('<div/>');
-                        
-                        var editButton = $('<a/>', {
-                            href: "#",
-                            class: 'bi-pencil-fill text-secondary edit-intervenant',
-                            'data-id': response.intervenant.id,
-                            text: ''
-                        });
-
-                        var deleteButton = $('<a/>', {
-                            href: "#",
-                            class: 'bi-trash text-warning delete-intervenant',
-                            'data-id': response.intervenant.id,
-                            text: ''
-                        });
-                        
-                        debutdiv.append(editButton, deleteButton)
-                        content.append(img, name, debutdiv);
-                        newIntervenant.append(content);
-                        intervenantList.append(newIntervenant);
-
-                        //refresh la page pour mettre à jour la liste des intervenants
-                        window.location.reload(true);
-                    } else {
-                        console.log(response.errors);
-                    }
-                },
-                error: function (xhr, ajaxOptions, thrownError) {
-                    console.log('Erreur lors de la soumission du formulaire : ' + thrownError);
-                }
-            });
-        });
-
-        // Gestion du formulaire de modification
-        $('.edit-intervenant').click(function() {
-            var intervenantId = $(this).data('id');
-            var intervenantItem = $('#' + intervenantId);
-            var intervenantName = intervenantItem.find('h5').text();
-            var intervenantLogo = intervenantItem.find('img').attr('src');
-
-            // Remplir le formulaire de modification
-            $('#editIntervenantId').val(intervenantId);
-            $('#id_nom').val(intervenantName);
-            $('#editIntervenantForm img').attr('src', intervenantLogo);
-
-            // Masquer le formulaire d'ajout et afficher le formulaire de modification
-            $('#intervenantFormContainer').hide();
-            $('#editFormContainer').show();
-        });
-
-        // Annuler la modification
-        $('#cancel_edit').click(function() {
-            // Réinitialiser le formulaire
-            $('#editIntervenantForm')[0].reset();
-            $('#editIntervenantForm img').attr('src', '');
-
-            // Afficher le formulaire d'ajout et masquer le formulaire de modification
-            $('#editFormContainer').hide();
-            $('#intervenantFormContainer').show();
-        });
-
-        // Soumettre la modification
-        $('#editIntervenantForm').submit(function (e) {
-            e.preventDefault();
-            var form = $(this);
-            var url = form.attr('action');
-            var formData = new FormData(this);
-
-            $.ajax({
-                type: 'POST',
-                url: url,
-                data: formData,
-                processData: false,
-                contentType: false,
-                success: function (response) {
-                    if (response.success) {
-                        console.log('Intervenant modifié avec succès.');
-
-                        // Mettre à jour les informations de l'intervenant dans la liste
-                        var intervenantItem = $('#' + response.intervenant.id);
-                        intervenantItem.find('h5').text(response.intervenant.nom_complet);
-                        intervenantItem.find('img').attr('src', response.intervenant.logo_url);
-
-                        // Réinitialiser le formulaire
-                        $('#editIntervenantForm')[0].reset();
-                        $('#editIntervenantForm img').attr('src', '');
-
-                        // Afficher le formulaire d'ajout et masquer le formulaire de modification
-                        $('#editFormContainer').hide();
-                        $('#intervenantFormContainer').show();
-                    } else {
-                        console.log(response.errors);
-                    }
-                },
-                error: function (xhr, ajaxOptions, thrownError) {
-                    console.log('Erreur lors de la soumission du formulaire : ' + thrownError);
-                }
-            });
-        });
-
-        // Supprimer un intervenant
-        $(document).on('click', '.delete-intervenant', function () {
-            var intervenantId = $(this).data('id');
-            var intervenantItem = $('#' + intervenantId);
-
-            // Confirmer la suppression de l'intervenant
-            if (confirm('Êtes-vous sûr de vouloir supprimer cet intervenant ?')) {
-                urlinter = "{% url 'planning:delete_intervenant' 1234 %}".replace(/1234/,
-                    intervenantId);
-
-                $.ajax({
-                    type: 'POST',
-                    url: urlinter,
-                    data: {
-                        csrfmiddlewaretoken: '{{ csrf_token }}'
-                    },
-                    success: function (response) {
-                        if (response.success) {
-                            console.log('Intervenant supprimé avec succès.');
-
-                            // Supprimer l'intervenant de la liste
-                            intervenantItem.remove();
-                        } else {
-                            console.log(response.errors);
-                        }
-                    },
-                    error: function (xhr, ajaxOptions, thrownError) {
-                        console.log('Erreur lors de la suppression de l\'intervenant : ' +
-                            thrownError);
-                    }
-                });
-            }
-        });
     });
 </script>
 

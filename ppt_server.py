@@ -28,7 +28,8 @@ def server_program():
                 msg = "server ok "
                 ppt = smsg.split("@")[1] # "C:\\wamp64\\www\\test.pptx"
                 conn.send(msg.encode())  # send data to the client
-                os.system('start /max "" "POWERPNT.EXE" /S '+"C:/Users/Mediadone/Desktop/projet_merge/urban-garbanzo/"+ppt)  # /s slide show C:\\Program Files (x86)\\Microsoft Office\\root\\Office16\\
+                print("Votre adresse IP locale est :", ppt)
+                os.system('start /max "" "POWERPNT.EXE" /S '+"./"+ppt)  # /s slide show C:\\Program Files (x86)\\Microsoft Office\\root\\Office16\\
                 # os.system('start /max "" "chrome.EXE" /s '+ppt)
         conn.close()  # close the connection
         print("client disconnected")                      

@@ -1,159 +1,30 @@
+
 {% extends 'Planning/base.html' %}
 {% load static %}
 {% block title%}vod{% endblock %}
 
-{% block body %}
+{% block body %} 
 
-{% load crispy_forms_tags %}
+{% load crispy_forms_tags %}  
 <div class="container ">
-    <div class="row " style="display: flex;">
-        <div id="congres-infos" class="col-4">
-            <!-- INFORMATIONS RELATIVES AU CONGRES -->
-            {% if congres %}
-            <h4 style="display: flex;">Congrès en cours...</h4>
-            <h6 style="margin-top: 20px;">Nom : <strong>{{congres}}</strong></h6>
-            <h6 style="margin-top: 20px;">Description : <strong>{{description}}</strong></h6>
-            <h6 style="margin-top: 20px;">NB salles : <strong>{{salles}}</strong></h6>
-            <div style="display: flex; justify-content: space-between;">
-                <h6>Début : <strong>{{debut}}</strong></h6><button class="bi-pencil-fill btn btn-light"
-                    onclick="openPopup('debut')"></button>
-            </div>
-            <div style="margin-top: 10px; display: flex; justify-content: space-between;">
-                <h6>Fin : <strong>{{fin}}</strong></h6><button class="bi-pencil-fill btn btn-light"
-                    onclick="openPopup('fin')"></button>
-            </div>
-
-            <button class="btn btn-danger" style="margin-top: 45%; margin-left: 55%;" onclick="popup()">Supprimer le
-                congrès</button>
-            {% else %}
-            <h4 style="display: flex;">Aucun congrès en cours</h4>
-            {% endif %}
-
-        </div>
+    <div class="row ">
+        <div class="col-2"></div>        
         <div class="col-8">
-
-            <h2 class="font-weight-bold mt-3"><i class="bi bi-file-plus text-warning"></i> Création d'un nouveau congrès
-            </h2>
-            <hr>
-
-            <form action="{% url 'planning:congres' %}" method="POST" enctype="multipart/form-data">
-                {% csrf_token %}
-                {{ add_form|crispy }}
+    
+                <h2 class="font-weight-bold mt-3"><i class="bi bi-file-plus text-warning"></i> Création d'un nouveau congrès </h2>
                 <hr>
-                <button class="btn btn-info" type="submit" style="margin-left: 91%;">Valider</button>
-            </form>
-            <input type="hidden" id="js_data" data-url="" data-csrf="{{csrf_token}}" />
-
+                
+                <form action="{% url 'planning:congres' %}" method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    {{ add_form|crispy }}  
+                    <hr>                  
+                    <button class="btn btn-info" type="submit">Valider</button>
+                </form>
+           
         </div>
-    </div>
+        <div class="col-2"></div>
+
 </div>
-<!-- POPUP SUPPRESSION DE CONGRES -->
-<div id="overlay">
-    <section id="page_upload">
-        <div class="container">
-            <div id="divrow" class="row">
-                <div class="col">
-                    <div class="mb-3 mt-3">
-                        <div style="display: flex; justify-content: space-between;">
-                            <h2 class="mb-3" style="font-weight: 300"><strong>Voulez-vous vraiment supprimer le congrès
-                                    en cours ?</strong></h2>
-                            <span style="font-weight: 900; cursor: pointer;" onclick="popup_close()">&times;</span>
-                        </div>
-                        <button type="button" value="Upload" id="upload_btn" class="btn btn-danger"
-                            onclick="delete_congres()">Je suis sûr</button>
-                        <button type="button" id="cancel_btn" class="btn btn-secondary" onclick="popup_close()">Annuler
-                            Suppression</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
 </div>
-<div id="popup_day">
-    <div class="popup-container" >
-        <div class="popup-content">
-            <h2>Choisissez une date</h2>
-            <input type="date" id="dateInput">
-            <button onclick="closePopup()" class="btn btn-danger">Fermer</button>
-            <button onclick="changerDate()" class="btn btn-primary">Valider</button>
-        </div>
-    </div>
-</div>
-
-<script>
-    //gestion de la popup
-    let boutonClique = ""; // Variable pour stocker le bouton cliqué
-
-    function openPopup(type) {
-        boutonClique = type; // Stockez l'information sur le bouton cliqué
-        document.getElementById("popup_day").style.display = "block";
-    }
-
-    function closePopup() {
-        document.getElementById("popup_day").style.display = "none";
-    }
-    //gestion de l'autre popup
-    function popup() {
-        document.getElementById("overlay").style.display = "block";
-    }
-
-    function popup_close() {
-        document.getElementById("overlay").style.display = "none";
-    }
-    document.getElementById("overlay").addEventListener("dblclick", function () {
-        this.style.display = "none";
-    });
-    // gestion de la suppression du congrès
-    function delete_congres() {
-        fetch("{% url 'planning:delete_congres' %}", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": document.querySelector("#js_data").dataset.csrf,
-            },
-        }).then(
-            (response) => {
-                if (response.ok) {
-                    window.location.href = window.location.href;
-                }
-            }
-        );
-    }
-    function changerDate() {
-        const selectedDate = document.getElementById("dateInput").value;
-        closePopup(); // Fermez la popup
-        changer(boutonClique, selectedDate); // Appelez votre fonction avec le bouton et la date choisie
-    }
-
-    function changer(btn, new_date) {
-    fetch("{% url 'planning:changer' %}", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": document.querySelector("#js_data").dataset.csrf,
-            },
-            body: JSON.stringify({
-                moment: btn,
-                new_date: new_date,
-            }),
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Traitement des données en cas de succès
-                window.location.href = window.location.href; // Recharger la page, si nécessaire
-            } else {
-                // Gestion des erreurs depuis le serveur
-                alert("Erreur : date de début supérieure à la date de fin de congrès"); // Afficher le message d'erreur du serveur
-            }
-        })
-        .catch(error => {
-            // Gestion des erreurs de réseau ou autres erreurs inattendues
-            console.error("Erreur lors de la requête AJAX : ", error);
-            alert("Une erreur s'est produite lors de la requête AJAX.");
-        });
-}
-
-</script>
 
 {% endblock %}

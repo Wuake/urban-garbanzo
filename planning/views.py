@@ -1,7 +1,9 @@
 from django.shortcuts import render, get_object_or_404, redirect
+from django.urls import reverse
 #from django.contrib.auth.decorators import login_required
 from django.http import Http404
-import socket, shutil
+
+import socket
 from django.db.models import Q
 from django.core.files.storage import FileSystemStorage
 from django.http.response import JsonResponse
@@ -15,8 +17,9 @@ import datetime as datetime2
 # Create your views here.
 
 from .models import *
-from .forms import CongressForm, SessionForm, PresentationForm, IntervenantForm, EditIntervenantForm
+from .forms import CongressForm, SessionForm, PresentationForm, IntervenantForm
 
+congres_id= 1
 def addOneRoom(new):
     # * Si il y a plusieurs congres,
     # * mettre à jour cette fonction qui va chercher le dernier congres créé
@@ -28,8 +31,6 @@ def addOneRoom(new):
     if new :
         rooms = Room.objects.all()
         Room.objects.create(congress= new , number=str(rooms.count()+1), name="Salle "+str(rooms.count()+1))
-        new.number += 1
-        new.save()
         status = "salle ajoutée"
     else :
         #retournement d'erreur
@@ -42,7 +43,7 @@ def addOneRoom(new):
 def addRooms(new, nb):
     i=1
     while i <= int(nb) :
-        Room.objects.create(congress= new, number=str(i), name="Salle "+str(i))
+        Room.objects.create(congress= new , number=str(i), name="Salle "+str(i))
         i = i+1
         
 def addDay(new,date1, date2):
@@ -75,43 +76,60 @@ def addcongres(request):
                 new.name=label
                 new.description=description
                 new.thumbnail=thumbnail
+                new.save()
             else :
                 new = Congress.objects.create(name=label, number=number, description=description, thumbnail=thumbnail)
-                
-            new.save()
-            addRooms(new, number)
-            addDay(new, datetime.strptime(date1, '%Y-%m-%d').date(), datetime.strptime(date2, '%Y-%m-%d').date() )
+                addRooms(new, number)
+                addDay(new, datetime.strptime(date1, '%Y-%m-%d').date(), datetime.strptime(date2, '%Y-%m-%d').date() )
+           
+            
             messages.success(request,'Un nouveau congrès a été crée : '+ add_form['label'].value())
+            return redirect( "planning:home" )
         else : messages.error(request,'Formulaire invalide : '+add_form.errors)
        
-    form = CongressForm()
-    if Congress.objects.all().count() != 0:
-        congres = Congress.objects.all().order_by('-id')[0]
-        dates = Day.objects.all()
-        date_debut = dates[0].date
-        date_fin = dates[len(dates)-1].date
-        print(congres)
+    # si modification
+    idCongres = request.GET.get('id')
+    if idCongres :
+        cg =Congress.objects.get(id=idCongres)
+        days = Day.objects.filter(congress=cg)
+        print(days[0], days[1])
+        form = CongressForm(initial={'id': cg.id, 'label': cg.name, 'description': cg.description, 'thumbnail': cg.thumbnail, 'number': cg.number, "date1":days[0], "date2":days[1]})
+    else :
+        form = CongressForm()
+        print("id congres ===== ", idCongres)
+    
+    return render(request, "Planning/congres.html", {"add_form":form}) 
 
-        return render(request, "Planning/congres.html", {
-            "add_form":form,
-            "congres": congres.name,
-            "debut": date_debut,
-            "fin": date_fin,
-            "salles": congres.number,
-            "description": congres.description 
-            },  ) 
-    else:
-        return render(request, "Planning/congres.html", {"add_form":form},  )
+
+def home(request):
+    idCongres = request.GET.get('id')
+    if idCongres :
+        global congres_id
+        cg = Congress.objects.get(id=idCongres) 
+        congres_id = idCongres
+        
+        return redirect( "planning:create" )
+    else :
+        congress = Congress.objects.all()
+        
+        context = {
+            'congress': congress,
+            'congres_id': congres_id,
+        }
+        
+    return render(request, "Planning/home.html", context) 
 
 # mise a jour de la presentation en cours dans le champ dedié de la room pour affichage dans le live
 #@user_passes_test(lambda u: u.is_superuser)
 def create(request):
-    congres = Congress.objects.all().order_by('-id')[0]
+    congres = Congress.objects.get(id=congres_id)
+    
     rooms = Room.objects.filter(congress__pk=congres.pk)
     days = Day.objects.filter(congress__pk=congres.pk)
-    pform = PresentationForm()
+    request.session["congres_name"] = congres.name
+    pform = PresentationForm(congress_id =congres_id)
     sform = SessionForm()
-    return render(request, "Planning/create.html", {'rooms': rooms,'days': days,"sess_form":sform, "pres_form":pform}) 
+    return render(request, "Planning/create.html", {"congres_name":congres.name, 'rooms': rooms,'days': days,"sess_form":sform, "pres_form":pform}) 
 
 
 def show_plan(request):
@@ -175,7 +193,7 @@ def show_plan(request):
 
         return JsonResponse(data)
     else:
-        congress = Congress.objects.get()
+        congress = Congress.objects.get(id=congres_id)
         days = Day.objects.filter(congress__pk=congress.pk)
         rooms = Room.objects.all()
         print("coucou2")
@@ -258,68 +276,69 @@ def planning_plan(request):
 
         return JsonResponse(data)
     else:
-        congress = Congress.objects.get()
-        days = Day.objects.filter(congress__pk=congress.pk)
-        rooms = Room.objects.all()
-        print(congress.pk)
-        print("coucou2")
+        congress = Congress.objects.get(id=congres_id)
+        days = Day.objects.filter(congress=congress)
+        rooms = Room.objects.filter(congress=congress)
         context = {'congress': congress, 'days': days, 'rooms': rooms}
         return render(request, 'Planning/planning.html', context)
     
 
-def get_sessions(request):
-    selected_date = request.GET.get('date')
-    # Effectuer les opérations nécessaires pour récupérer les sessions en fonction de la date
-    
-    # Supposons que vous ayez une liste de sessions que vous souhaitez renvoyer
-    sessions = [
-        {
-            'title': 'Session 1',
-            'start': '2023-06-21 09:00',
-            'end': '2023-06-21 11:00'
-        },
-        {
-            'title': 'Session 2',
-            'start': '2023-06-21 14:00',
-            'end': '2023-06-21 16:00'
-        }
-    ]
-    
-    return JsonResponse(sessions, safe=False)
-
 def show_pupitre(request):
-    congres = Congress.objects.get()
+    congres = Congress.objects.get(id=congres_id)
     rooms = Room.objects.filter(congress__pk=congres.pk)
     days = Day.objects.filter(congress__pk=congres.pk)
-    pform = PresentationForm()
+    pform = PresentationForm(congress_id =congres_id)
     sform = SessionForm()
     return render(request, "Planning/pupitre.html", {'rooms': rooms,'days': days,"sess_form":sform, "pres_form":pform}) 
 
-def show_intervenant(request):
-    if request.method == 'POST' and request.headers.get('x-requested-with') == 'XMLHttpRequest':
-        if 'id' in request.POST:  # Modification de l'intervenant existant
-            intervenant = get_object_or_404(Intervenant, id=request.POST['id'])
-            form = EditIntervenantForm(request.POST, request.FILES, instance=intervenant)
-        else:  # Création d'un nouvel intervenant
-            form = IntervenantForm(request.POST, request.FILES)
-
+def add_speaker(request):
+    
+    if request.method == 'POST':
+             
+        form = IntervenantForm()
+        form = IntervenantForm(request.POST, request.FILES)
         if form.is_valid():
-            intervenant = form.save()
-            response = {'success': True, 'intervenant': intervenant.to_json()}
+            cd = form.cleaned_data 
+        else :    
+            response = {'success': False, 'form non valid ': form.errors}
+            return JsonResponse(response)
+        
+        try:
+            speaker = Intervenant.objects.get(id=int(cd['id']))
+        except Intervenant.DoesNotExist:
+            speaker = None
+
+        if speaker is None:
+            congres = Congress.objects.get(id=congres_id)
+            speaker = Intervenant(
+                nom = cd['nom'],
+                prenom = cd['prenom'],
+                logo = cd['logo'],
+                congress=congres
+            )     
+            speaker.save() 
+           
+        else:
+            speaker.nom=cd['nom']
+            speaker.prenom=cd['prenom']
+            speaker.logo=cd['logo']
+            speaker.save()
+
+        if speaker :
+            response = {'success': True, 'speaker': speaker.to_json()}
         else:
             response = {'success': False, 'errors': form.errors}
+            
         return JsonResponse(response)
     else:
-        intervenants = Intervenant.objects.all()
+        intervenants = Intervenant.objects.filter(congress__id=congres_id)
         Intervenant_form = IntervenantForm()
-        EditIntervenant_form = EditIntervenantForm()
-
+        
         context = {
             'intervenants': intervenants,
-            'Intervenant_form': Intervenant_form,
-            'EditIntervenant_form': EditIntervenant_form,
+            'Intervenant_form': Intervenant_form
         }
-
+        
         return render(request, 'Planning/intervenant.html', context)    
 
 def delete_intervenant(request, intervenant_id):
@@ -327,6 +346,7 @@ def delete_intervenant(request, intervenant_id):
         intervenant = Intervenant.objects.get(id=intervenant_id)
         intervenant.delete()
         return JsonResponse({'success': True})
+    
     except Intervenant.DoesNotExist:
         return JsonResponse({'success': False, 'errors': 'Intervenant does not exist.'})
 
@@ -355,9 +375,7 @@ def ajax_load_planning(request, pk, date):
 
 def ajax_load_planning(request, pk, date):
     today = date
-    presentations = Presentation.objects.select_related('session').filter(session__room_id=pk, session__date=today)
-    
-
+    presentations = Presentation.objects.select_related('session').filter(session__room_id=pk, session__date_id=date)
 
     presentations_list = []
     for presentation in presentations:
@@ -365,7 +383,7 @@ def ajax_load_planning(request, pk, date):
         inter_list = []
         infos = []
         infos_id = []
-
+        print(interpresents)
         #on itere sur les interpresent
         for interp in interpresents:
             # print(interp.id_intervenant)
@@ -387,7 +405,10 @@ def ajax_load_planning(request, pk, date):
         # print(infos_id)
 
         # print(infos)
-
+        if presentation.fichier_pptx :
+            isFile =True
+        else :
+            isFile = False
         presentation_dict = {
             "id": presentation.pk,
             "title": presentation.title,
@@ -397,13 +418,14 @@ def ajax_load_planning(request, pk, date):
             "session_id": presentation.session_id,
             "session_title": presentation.session.title,
             "time_begin": presentation.session.time_start.strftime('%H:%M'),
-            
             "time_end": presentation.session.time_end.strftime('%H:%M'),
+            "fichier_pptx" : isFile,
         }
         # print(presentation.session.time_start.strftime('%H:%M'), presentation.session.time_end.strftime('%H:%M'))
         presentations_list.append(presentation_dict)
 
     return JsonResponse(presentations_list, safe=False)
+
 
 # * charge les salles d'un congres
 # * prend en param l'id du congres
@@ -417,7 +439,9 @@ def ajax_load_rooms(request):
         "congress": room.congress.name,
         "number": room.number,
     } for room in rooms]
+    print("Salut à tous c'est la salle")
     return JsonResponse(rooms_list, safe=False)
+
 
 #@login_required
 def ajax_add_session(request, pk):
@@ -434,12 +458,10 @@ def ajax_add_session(request, pk):
         if new is None:
             start_time = datetime.strptime(jsonbody['time1'], '%H:%M').time()
             end_time = datetime.strptime(jsonbody['time2'], '%H:%M').time()
-            date_id = jsonbody['date']
-            existing_sessions = Session.objects.filter(
-                Q(room_id=pk) & Q(date_id=date_id) &
-                (Q(time_start__lt=end_time) & Q(time_end__gt=start_time))
-            )
-            if existing_sessions.exists():
+            date_id = jsonbody['dateid']
+            #existing_sessions = Session.objects.filter(  Q(room_id=pk) & Q(date_id=date_id) &  (Q(time_start__lt=end_time) & Q(time_end__gt=start_time)) )
+            
+            if False : #existing_sessions.exists():
                 response_data['error'] = 'Une session existe déjà à ce moment-là'
             else:
                 sess = Session.objects.create(
@@ -459,26 +481,26 @@ def ajax_add_session(request, pk):
         else:
             start_time = datetime.strptime(jsonbody['time1'], '%H:%M').time()
             end_time = datetime.strptime(jsonbody['time2'], '%H:%M').time()
-            date_id = jsonbody['date']
-            existing_sessions = Session.objects.filter(
-                Q(room_id=pk) & Q(date_id=date_id) & ~Q(id=new.id) &
-                (Q(time_start__lt=end_time) & Q(time_end__gt=start_time))
-            )
-            if existing_sessions.exists():
-                response_data['error'] = 'Une session existe déjà à ce moment-là'
-            else:
-                new.title = jsonbody['title']
-                new.time_start = start_time
-                new.time_end = end_time
-                new.save()
-                response_data['success'] = 'Session mise à jour avec succès'
+            date_id = jsonbody['dateid']
+            #existing_sessions = Session.objects.filter( Q(room_id=pk) & Q(date_id=date_id) & ~Q(id=new.id) & (Q(time_start__lt=end_time) & Q(time_end__gt=start_time)))
+            #if existing_sessions.exists():
+             #   response_data['error'] = 'Une session existe déjà à ce moment-là'
+            #else:
+            new.title = jsonbody['title']
+            new.time_start = start_time
+            new.time_end = end_time
+            new.save()
+            response_data['success'] = 'Session mise à jour avec succès'
+               
 
     presentations_list = {}
     return JsonResponse(response_data, safe=False)
 
+"""
 def ajax_add_intervenant(request, pk):
     response_data = {}
     today = date.today()
+    
     if request.method == 'POST':
         jsonbody = json.loads(request.body)
         # print("_________________________________________________________", jsonbody['id'],  jsonbody['title'])
@@ -531,7 +553,7 @@ def ajax_add_intervenant(request, pk):
 
     presentations_list = {}
     return JsonResponse(response_data, safe=False)
-
+"""
 #@login_required
 def ajax_add_pres(request, pk):
     #posts = Post.objects.all()
@@ -540,98 +562,48 @@ def ajax_add_pres(request, pk):
     if request.method == 'POST':
         jsonbody = json.loads(request.body)
 
-        # print(request.body)
-
         response_data['title'] = jsonbody['title']
         response_data['time2'] = jsonbody['duration']
         response_data['author'] = jsonbody['author']
         response_data['author1'] = jsonbody['author1']
         response_data['author2'] = jsonbody['author2']
 
-
         # ! REGLER LE BUG DE MODIFICATION DES INFORMATIONS DE PRESENTATION
-
         try:
-            new = Presentation.objects.get(id=int(jsonbody['id']))
-            
+            new = Presentation.objects.get(id=int(jsonbody['id']))   
         except Presentation.DoesNotExist:
             new = None           
             
-        if new :
-            
+        if new :           
             new.session_id = pk
             new.title=jsonbody['title']
-            
-            # new.author=jsonbody['author']
             new.duration=jsonbody['duration']
-            # new.fichier = jsonbody['fichier']
-            InterPresent.objects.filter(id_presentation=new).delete()
             new.save()
+        
         else :
-            # print(jsonbody["fichier"])
+
             new =  Presentation.objects.create( session_id = pk,
                                                 title = jsonbody['title'],
                                                 # author= jsonbody['author'],
                                                 duration= jsonbody['duration'],
                                                 )
-        
-
-        try:
-            new_inter = InterPresent.objects.get(id=int(jsonbody['id']))
+           
+        #  supprime tous les auteurs et on ajoute les nouveaux
+        InterPresent.objects.filter(id_presentation=new).delete()
+                  
+        if(jsonbody['author']):
             new_intervenant = Intervenant.objects.get(id=int(jsonbody['author']))
-            new_intervenant1 = Intervenant.objects.get(id=int(jsonbody['author1']))
+            if new_intervenant :
+                InterPresent.objects.create( id_presentation = new, id_intervenant = new_intervenant )
+        if(jsonbody['author1']):
+            new_intervenant1 = Intervenant.objects.get(id=int(jsonbody['author1'])) 
+            if new_intervenant1 :
+                InterPresent.objects.create( id_presentation = new, id_intervenant = new_intervenant1 )       
+        if(jsonbody['author2']):
             new_intervenant2 = Intervenant.objects.get(id=int(jsonbody['author2']))
-            
-        except InterPresent.DoesNotExist:
-            new_inter = None
-            new_intervenant = Intervenant.objects.get(id=int(jsonbody['author']))
-            if(jsonbody['author1']):
-                new_intervenant1 = Intervenant.objects.get(id=int(jsonbody['author1']))
-                
-                if(jsonbody['author2']):
-                    new_intervenant2 = Intervenant.objects.get(id=int(jsonbody['author2']))
-
-
-        if new_inter :
-            new_inter.id_presentation = new
-            new_inter.id_intervenant=new_intervenant
-            if(jsonbody['author1']):
-                new_inter.id_intervenant=new_intervenant1
-                if(jsonbody['author2']):
-                    new_inter.id_intervenant=new_intervenant2
-            new_inter.save()
-        else :
-            existing_inter = InterPresent.objects.filter(id_presentation=new, id_intervenant=new_intervenant)
-            if(jsonbody['author1']):
-                existing_inter1 = InterPresent.objects.filter(id_presentation=new, id_intervenant=new_intervenant1)
-            else:
-                existing_inter1 = None
-            if(jsonbody['author2']):
-                existing_inter2 = InterPresent.objects.filter(id_presentation=new, id_intervenant=new_intervenant2)
-            else:
-                existing_inter2 = None
-
-            if not existing_inter:
-               
-               new_inter = InterPresent.objects.create( id_presentation = new,
-                                                     id_intervenant = new_intervenant,
-                                                     )
-            else:
-                existing_inter.first().delete()
-                new_inter = InterPresent.objects.create( id_presentation = new,
-                                                     id_intervenant = new_intervenant,
-                                                     )
-
-            if not existing_inter1:
-                if(jsonbody['author1']):
-                    new_inter = InterPresent.objects.create( id_presentation = new,
-                                                            id_intervenant = new_intervenant1,
-                                                            )
-            if not existing_inter2:
-                if(jsonbody['author2']):
-                    new_inter = InterPresent.objects.create( id_presentation = new,
-                                                            id_intervenant = new_intervenant2,
-                                                            )
+            if new_intervenant2 :
+                InterPresent.objects.create( id_presentation = new, id_intervenant = new_intervenant2 )     
+          
             
     return JsonResponse(response_data, safe=False)
 
@@ -647,45 +619,50 @@ def ajax_del_pres(request, pk):
     
     return JsonResponse({}, safe=False)
 
+# open pptx file on server
 def open_ppt(host, ppt_file):
     host = host
     port = 5000
     message = f"open_ppt@{ppt_file}".encode()
     # create socket
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        # connect to server
+    try :
+        sock =  socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    except socket.error  :
+        print ('Failed to create socket. Error code: ' + socket.error)
+        return False
+   
+    try :
         sock.connect((host, port))
-        # send string to server
         sock.sendall(message)
         # get server response
         response = sock.recv(1024)
         # decode the response and return it
+        print ( response.decode )
         return response.decode()
-
-
-
+    except socket.error as msg :
+       
+        return "Erreur de connexion au serveur pptx : "+str(msg)
+# open pptx file on server      
 def ouvrir_presentation(request):
 
     data = json.loads(request.body)
-    id_pres = data.get('id', '')
-    # print(id_pres)
-
+    id_pres = data.get('id', '') 
+    room_ip = data.get('room_ip', '')
     presentation = Presentation.objects.get(id=id_pres)
     # print(presentation)
     fichier_pptx = presentation.fichier_pptx
     print("le fichier =>" + fichier_pptx.name)
     print("Voici le lien vers le fichier =>" + fichier_pptx.path)
 
-    open_ppt("127.0.0.1", fichier_pptx.path)
+    response = open_ppt(room_ip, fichier_pptx.name)
     
-
-    return JsonResponse({"success": True})
+    return JsonResponse({"message": response})
 
 
 
 def show_upload(request):
-    intervenant_all = Intervenant.objects.all()
-    print("ok")
+    intervenant_all = Intervenant.objects.filter(congress__id=congres_id)
+
     return render(request, 'Planning/upload.html', {'intervenant_all': intervenant_all})
 
 def intervenant_select(request):
@@ -702,7 +679,10 @@ def intervenant_select(request):
             'id': presentation.id,
             'title': presentation.title,
             'duration': presentation.duration,
-            'fichier_pptx': presentation.fichier_pptx.path if presentation.fichier_pptx else None
+            'fichier_pptx': presentation.fichier_pptx.path if presentation.fichier_pptx else None,
+            'on_server' : presentation.fichier_pptx.on_server if presentation.fichier_pptx else False,
+            'in_room' : presentation.fichier_pptx.in_room if presentation.fichier_pptx else False
+            
         })
 
     # print(presentation_list)
@@ -721,103 +701,65 @@ def upload_file(request):
     print(data)
     return JsonResponse({"link": data})
 
-def check_mark(request):
-    presentation = None
-    res = False
-    try:
-        data = json.loads(request.body)
-        id = data.get('id', '')
-        presentation = Presentation.objects.get(id=id)
-    except Exception as e:
-        print(e)
-    if presentation.fichier_pptx is not None and presentation.fichier_pptx.path is not None:
-        res = True
-    else:
-        res = False
-        print("PAS DE PRESENTATION TROUVEE DANS LA BASE DE DONNEES")
-
-    return JsonResponse({"success": res})
-
-def on_laptop(request):
-    presentation = None
-    res = False
-    try:
-        data = json.loads(request.body)
-        fichier_pptx = data.get('file', '')
-        presentation = File.objects.get(path=fichier_pptx)
-        # print(presentation)
-    except Exception as e:
-        print(e)
-    if presentation.in_room:
-        res = True
-    else:
-        res = False
-        print("Le fichier n'est pas sur le pc pupitre")
-
-    return JsonResponse({"success": res})
 
 # * CHAQUE PC A UNE SEULE SALLE ATTRIBUEE A TRAVERS TOUS LES CONGRES
 # ! UNE SEUL PROGRAMME TOURNE DONC SOUCIS
 # * ON VA TOUT CHERCHER D'UN COUP POUR LE MOMENT
 def fetching_files(request):
     # * ADDRESSE DU PC SERVEUR
-    # host = "10.32.1.2"
-    host = "192.168.1.30"
+    host = "127.0.0.1"
+    # host = "192.168.1.30"
     user = "admin"
-    password = "admin"
-    # * DOSSIER DE STOCKAGE DES FICHIERS
-    salle = "Salle 1"
-    chemin_salle = "C:/Users/Mediadone/Documents/CONGRES/"
-    # chemin_salle = "C:/Users/wuake/Documents/CONGRES/"
+    password = "webeeconf"
+    message=''
+    allok=True
 
     if request.method == 'POST':  
-        salle = "Salle 1"
+        host = json.loads(request.body).get('room_ip', '')
+        room_id = json.loads(request.body).get('room_id', '')
+        print(host, room_id)
+       
         files = []
         try:
             print("CONNEXION AU SERVEUR...")
             server = ftp.FTP()
             server.connect(host, 21)
             server.login(user, password)
-            print("CONNEXION SERVEUR POUR TELECHARGEMENT DES FICHIERS REUSSIE")
-            # ? creation du dossier de stockage des fichiers
-            os.makedirs(f"{chemin_salle}/{salle}", exist_ok=True)
-            server.sendcmd(f"cwd Salle 1/") 
-            # ? recuperation des fichiers
-            def ajout_fichier(fichier):
-                files.append(fichier)
-            server.retrlines("NLST", callback=ajout_fichier) 
-            
-            print("cc", files)
-            # ? téléchargement des fichiers
-            os.chmod(chemin_salle + salle, 0o777)
-            print(f"PERMISSIONS CHANGEES {chemin_salle}{salle}")
-            # for file in files: 
-            #     with open(chemin_salle + salle, "wb") as fichier_local:
-            #         server.retrbinary("RETR " + file, fichier_local.write) 
-            # # the name of file you want to download from the FTP server
-            for file in files:
-                with open(chemin_salle + salle + "/" + file, "wb") as filename:
-                    # ! CHANGER ETAT ON_LAPTOP A TRUE
-                    # use FTP's RETR command to download the file
-                    server.retrbinary(f"RETR {file}", filename.write)  
-            server.quit()
-            
-        except Exception as e:
-            print("ERREUR DE CONNEXION AU SERVEUR")
-            print("Erreur =>", e)
 
-        # ? on va chercher l'ip de la machine sur laquelle onclique sur le bouton refresh 
-        # ? pour venir mettre à jour la liste des fichiers sur le pupitre (SECURITE pour PLUS TARD)
-        adresse_ip = request.META.get('REMOTE_ADDR', None)
-
-        if not adresse_ip:
             try:
-                adresse_ip = socket.gethostbyname(socket.gethostname())
-            except socket.gaierror:
-                adresse_ip = "Adresse IP non disponible"
-    else:
-        print("METHODE GET ET NON POST")
-    return JsonResponse({"adresse_ip": adresse_ip})
+                print("DEBUT DU TRANSFERT...")
+                press = Presentation.objects.filter(session__room__id=room_id)
+                for pres in press:
+                    file = pres.fichier_pptx
+                    
+                    if file and not file.in_room : 
+                        print("tranfert file  ",  file.path)
+                        pptxfile = f"media/presentations/fichiers_importes/fichier_{pres.id}.pptx"
+                        with open(file.path, "rb") as fichier: 
+                            msg = server.storbinary(f"STOR pptx_files/{file.name}", fichier) 
+                
+                            if( int(msg[0:3])==226) :
+                                print("Envoi du fichier OK ", msg)
+                                file.in_room = True
+                                file.save()
+                                #return True
+                            else :
+                                file.in_room = False
+                                file.save()
+                            
+            except Exception as e:
+                print("Erreur lors de l'envoi du fichier :", str(e))
+                message = "Erreur lors de l'envoi du fichier : "+str(e)
+            
+            server.quit()
+        except Exception as e:
+            print("Erreur lors de l'envoi du fichier :", str(e))
+            return JsonResponse({"message": 'Erreur connexion au serveur ftp!'})  
+        
+    return JsonResponse({"message": message, "allok":allok})
+
+
+
 
 # * CHANGE LA COULEUR DU BOUTON PLAY EN FONCTION DE L'IMPORT DU FICHIER
 def couleur_bouton(request):
@@ -839,43 +781,3 @@ def pupitre_trigger(request):
             file.in_room = True
             file.save()
     return JsonResponse({"success": True})
-
-def delete_congres(request):
-    if Congress.objects.all().exists():
-        Congress.objects.all().delete()
-        path = "media/presentations/fichiers_importes/"
-        shutil.rmtree(path)
-        return JsonResponse({"success": True})
-    else:
-        return JsonResponse({"success": False})
-
-# * CHANGER LA DATE DE DEBUT/FIN DU CONGRES
-def changer(request):
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            moment = data.get('moment', '')
-            new_date = data.get('new_date', '')
-            # new_date = datetime.strptime(new_date, "%Y-%m-%d").date()
-            dates = Day.objects.all()
-            congres = Congress.objects.all().order_by('-id')[0]
-            
-            if moment == "debut":
-                date_debut = new_date
-                date_fin = dates.last().date
-            else:
-                date_debut = dates.first().date
-                date_fin = new_date
-
-            if datetime.strptime(date_debut, "%Y-%m-%d").date() > datetime.strptime(date_fin, "%Y-%m-%d").date():
-                return JsonResponse({"success": False})
-            else:
-                # * suppression des anciennes dates
-                Day.objects.all().delete()
-                addDay(congres, datetime.strptime(date_debut, "%Y-%m-%d").date(), datetime.strptime(date_fin, "%Y-%m-%d").date())
-        except Exception as e:
-            print(e)
-        
-        return JsonResponse({"success": True})
-    else:
-        return JsonResponse({"success": False})
